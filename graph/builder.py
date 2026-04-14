@@ -1,3 +1,10 @@
+"""Graph builder.
+
+Owner: member 1 (main flow and graph structure).
+Responsibility: define node list and execution edges only.
+Avoid embedding business logic here.
+"""
+
 from langgraph.graph import END, START, StateGraph
 
 from graph.nodes import generate_answer, retrieve_docs, route_question

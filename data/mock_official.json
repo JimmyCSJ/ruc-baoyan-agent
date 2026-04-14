@@ -1,0 +1,23 @@
+[
+  {
+    "topic": "major_info",
+    "source": "official_site",
+    "title": "信息学院专业方向",
+    "content": "人大信息学院：计算机科学与技术、数据科学与大数据技术等专业方向。",
+    "confidence": 0.92
+  },
+  {
+    "topic": "admission_requirement",
+    "source": "official_site",
+    "title": "常见申请条件",
+    "content": "常见申请条件：绩点排名靠前、科研/竞赛经历、英语成绩达标。",
+    "confidence": 0.95
+  },
+  {
+    "topic": "eligibility_evaluation",
+    "source": "official_site",
+    "title": "资格评估参考",
+    "content": "资格评估通常关注年级排名、课程成绩、科研潜力和综合素质表现。",
+    "confidence": 0.9
+  }
+]

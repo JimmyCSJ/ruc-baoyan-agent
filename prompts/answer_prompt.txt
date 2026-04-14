@@ -1,1 +1,4 @@
+# Owner: member 3 (prompt design and output quality)
+# Responsibility: answer prompt strategy and wording
+# Avoid putting code logic here
 # placeholder — add answer prompt

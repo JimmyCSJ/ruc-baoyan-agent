@@ -7,6 +7,7 @@ h11==0.16.0
 httpcore==1.0.9
 httpx==0.28.1
 idna==3.11
+iniconfig==2.3.0
 jiter==0.14.0
 jsonpatch==1.33
 jsonpointer==3.1.1
@@ -21,8 +22,11 @@ openai==2.31.0
 orjson==3.11.8
 ormsgpack==1.12.2
 packaging==26.0
+pluggy==1.6.0
 pydantic==2.13.0
 pydantic_core==2.46.0
+Pygments==2.20.0
+pytest==9.0.3
 python-dotenv==1.2.2
 PyYAML==6.0.3
 regex==2026.4.4
