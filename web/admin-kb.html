@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KB 巡检 · RUC 保研助手</title>
+  <link rel="stylesheet" href="/web/style.css" />
+  <style>
+    body { margin: 0; background: var(--background); }
+    .admin-wrap { max-width: 56rem; margin: 0 auto; padding: 2rem; }
+    pre.json { background: #111827; color: #e5e7eb; padding: 1rem; border-radius: var(--radius); overflow: auto; font-size: 0.75rem; line-height: 1.45; }
+    .toolbar { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+  </style>
+</head>
+<body>
+  <div class="admin-wrap">
+    <h1 class="page-title">知识库巡检</h1>
+    <p class="muted page-desc">
+      <code class="code">GET /api/admin/kb/inspect</code>（需 <code class="code">ENABLE_KB_ADMIN=true</code>）返回
+      <strong>parse_verification</strong>：Excel 表头与列映射、样例行号 <code class="code">excel_row</code>、各 PDF 页数/字数/前页预览；
+      另可用 <code class="code">POST /api/kb/retrieve-preview</code> 仅跑检索（无 LLM），响应中 <code class="code">retrieval_trace.docs_passed_to_generation</code>
+      含每条命中的 <code class="code">locator</code>（pdf page / excel 行）与 <code class="code">content_preview</code>。
+      完整对话调试：<code class="code">POST /api/chat</code> 设 <code class="code">kb_debug: true</code> 或请求头 <code class="code">X-KB-Debug: true</code>。
+    </p>
+    <div class="toolbar">
+      <button type="button" class="btn btn-primary" id="btnLoad">刷新</button>
+      <span id="status" class="muted small"></span>
+    </div>
+    <pre class="json" id="out">加载中…</pre>
+  </div>
+  <script>
+    const out = document.getElementById("out");
+    const status = document.getElementById("status");
+    async function load() {
+      status.textContent = "";
+      out.textContent = "请求中…";
+      try {
+        const res = await fetch("/api/admin/kb/inspect");
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          out.textContent = JSON.stringify({ error: res.status, detail: data }, null, 2);
+          status.textContent = res.status === 404 ? "404：管理接口已关闭或路径错误" : "请求失败";
+          return;
+        }
+        out.textContent = JSON.stringify(data, null, 2);
+        status.textContent = "已加载 · rebuild_digest: " + (data.rebuild_digest || "").slice(0, 16) + "…";
+      } catch (e) {
+        out.textContent = String(e);
+      }
+    }
+    document.getElementById("btnLoad").addEventListener("click", load);
+    load();
+  </script>
+</body>
+</html>

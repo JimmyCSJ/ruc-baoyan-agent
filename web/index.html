@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>人大财政金融 · 保研工作台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/web/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" aria-label="主导航">
+      <div class="sidebar-brand">
+        <div class="brand-mark" aria-hidden="true">RUC</div>
+        <div class="brand-text">
+          <span class="brand-title">保研工作台</span>
+          <span class="brand-sub">中国人民大学财政金融学院 · 证据优先</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav" role="navigation">
+        <button type="button" class="nav-item active" data-view="quick" id="navQuick">
+          <span class="nav-icon" aria-hidden="true">◇</span>
+          <span class="nav-label">快问快答</span>
+        </button>
+        <button type="button" class="nav-item" data-view="long" id="navLong">
+          <span class="nav-icon" aria-hidden="true">◎</span>
+          <span class="nav-label">长程规划</span>
+        </button>
+        <button type="button" class="nav-item" data-view="kb" id="navKb">
+          <span class="nav-icon" aria-hidden="true">▤</span>
+          <span class="nav-label">知识库管理</span>
+        </button>
+        <button type="button" class="nav-item" data-view="kbdebug" id="navKbDebug">
+          <span class="nav-icon" aria-hidden="true">⌗</span>
+          <span class="nav-label">KB 调试</span>
+        </button>
+        <button type="button" class="nav-item" data-view="official" id="navOfficial">
+          <span class="nav-icon" aria-hidden="true">▭</span>
+          <span class="nav-label">官方文件</span>
+        </button>
+        <button type="button" class="nav-item" data-view="experience" id="navExperience">
+          <span class="nav-icon" aria-hidden="true">✎</span>
+          <span class="nav-label">经验库</span>
+        </button>
+        <button type="button" class="nav-item" data-view="settings" id="navSettings">
+          <span class="nav-icon" aria-hidden="true">⋯</span>
+          <span class="nav-label">设置</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-foot muted small">
+        回答仅供学习规划参考，最终以学院与研招网最新通知为准。
+      </div>
+    </aside>
+
+    <main class="main" id="mainPanel">
+      <!-- Quick Chat -->
+      <section class="view view-quick" id="viewQuick" data-view-panel="quick">
+        <div class="main-header">
+          <p class="workspace-tag">工作台 · 问答与证据对齐</p>
+          <h1 class="page-title">快问快答</h1>
+          <p class="page-desc">
+            双源知识库：<strong class="text-foreground">学院正式 PDF</strong>（规则）与
+            <strong class="text-foreground">小红书笔记表</strong>（经验）分组建索引；回答按「官方结论 / 经验补充 / 不确定性」分层，右侧可逐条检视可信度与推广风险。
+          </p>
+        </div>
+
+        <div class="search-panel card card-elevated">
+          <label class="sr-only" for="queryInput">研究问题</label>
+          <textarea
+            id="queryInput"
+            class="input input-lg"
+            rows="3"
+            placeholder="例如：人大金融专硕保研一般考察哪些方面？请以官网与可靠经验交叉核对。"
+          ></textarea>
+          <div class="scope-panel" role="group" aria-label="知识库检索范围">
+            <span class="scope-label muted small">检索范围（KB）</span>
+            <div class="scope-segment" id="kbScopeSeg">
+              <button type="button" class="scope-btn active" data-kb-scope="hybrid">混合（正式优先）</button>
+              <button type="button" class="scope-btn" data-kb-scope="official_only">仅正式 PDF</button>
+              <button type="button" class="scope-btn" data-kb-scope="xiaohongshu_only">仅小红书表</button>
+            </div>
+            <p class="scope-hint muted small">
+              规则/资格/材料类问题默认加大正式 PDF 权重；经验帖不会覆盖 PDF 结论。
+            </p>
+          </div>
+          <div class="search-panel-row">
+            <label class="toggle">
+              <input type="checkbox" id="enableWeb" />
+              <span>联网检索（知乎 / 微信 / 人大域名等公开页；结果标为「联网」）</span>
+            </label>
+            <div class="search-panel-actions">
+              <span class="hint muted small">Enter 发送 · Shift+Enter 换行</span>
+              <button type="button" id="sendBtn" class="btn btn-primary">生成回答</button>
+            </div>
+          </div>
+          <div class="faq-block">
+            <span class="muted small">常见问题</span>
+            <div id="faqChips" class="chips"></div>
+          </div>
+        </div>
+
+        <div id="quickEmpty" class="empty-state card">
+          <div class="empty-icon" aria-hidden="true">◇</div>
+          <h2 class="empty-title">尚未提问</h2>
+          <p class="empty-text muted">在上方输入问题后，结论、建议与引用将分别展示在中间与右侧证据栏。</p>
+        </div>
+
+        <div id="quickLoading" class="loading-state card hidden" role="status" aria-live="polite">
+          <div class="skeleton skeleton-line w-40"></div>
+          <div class="skeleton skeleton-line"></div>
+          <div class="skeleton skeleton-line w-80"></div>
+          <p class="loading-caption muted small">正在路由、检索并生成回答…</p>
+        </div>
+
+        <article id="answerCard" class="answer-card card card-elevated hidden" aria-live="polite">
+          <header class="answer-card-head">
+            <div>
+              <p class="eyebrow">本次问题</p>
+              <p id="answerQuestion" class="answer-question"></p>
+            </div>
+            <div class="answer-meta muted small" id="answerMeta"></div>
+          </header>
+
+          <div class="disclosure-strip">
+            <span class="badge badge-model">模型生成</span>
+            <span class="muted small">正文为语言模型基于下方证据组织，不等同于官方结论。</span>
+          </div>
+
+          <div class="answer-sections">
+            <section class="answer-section answer-section-official">
+              <h2 class="section-title">官方结论</h2>
+              <p class="section-hint muted small">基于学院正式文件等最高优先级证据；不等同于招生办口头答复。</p>
+              <div id="secConclusion" class="section-body prose"></div>
+            </section>
+            <section class="answer-section">
+              <h2 class="section-title">经验参考</h2>
+              <p class="section-hint muted small">学长学姐主观经验，可能过时；若与官方结论冲突以官方为准。</p>
+              <div id="secRecommendation" class="section-body prose"></div>
+              <p id="secRecommendationEmpty" class="section-empty muted small hidden">模型未单独输出「经验参考」或已与官方结论合并，请展开完整原文。</p>
+            </section>
+            <section class="answer-section answer-section-warn">
+              <h2 class="section-title">不确定性 / 冲突说明</h2>
+              <p class="section-hint muted small">资料缺口、时效不明、与经验矛盾处；重要事项请向学院确认。</p>
+              <div id="secRisks" class="section-body prose"></div>
+              <p id="secRisksEmpty" class="section-empty muted small hidden">未列出额外不确定性；仍请以最新通知为准。</p>
+            </section>
+            <section class="answer-section">
+              <h2 class="section-title">下一步行动</h2>
+              <div id="secNext" class="section-body prose"></div>
+              <p id="secNextEmpty" class="section-empty muted small hidden">可将上方要点转化为个人待办；也可在「长程规划」中生成结构化方案。</p>
+            </section>
+          </div>
+
+          <details class="answer-raw">
+            <summary>查看完整原文（含未拆分段落）</summary>
+            <div id="answerRaw" class="prose muted"></div>
+          </details>
+        </article>
+      </section>
+
+      <!-- Long-form -->
+      <section class="view view-long hidden" id="viewLong" data-view-panel="long">
+        <div class="main-header">
+          <h1 class="page-title">长程规划</h1>
+          <p class="page-desc">分步收集信息并生成 JSON 方案报告；适合时间线与材料清单。</p>
+        </div>
+
+        <div class="stack gap-lg">
+          <div class="card card-elevated pad-lg">
+            <h2 class="h3">1. 描述目标</h2>
+            <textarea id="longGoal" class="input" rows="2" placeholder="例如：希望保研人大经济类学硕，制定从现在到夏令营的时间线。"></textarea>
+            <div class="row-actions">
+              <button type="button" id="btnClarify" class="btn btn-secondary">生成追问</button>
+              <button type="button" id="btnLoadTemplate" class="btn btn-outline">填入信息模板（JSON）</button>
+            </div>
+            <div id="clarifyBox" class="clarify-box muted hidden"></div>
+          </div>
+          <div class="card card-elevated pad-lg">
+            <h2 class="h3">2. 填写信息（JSON）</h2>
+            <p class="muted small">将追问答案整理进模板；可直接编辑 JSON。</p>
+            <textarea id="longIntakeJson" class="input input-mono" rows="14" spellcheck="false"></textarea>
+            <label class="toggle">
+              <input type="checkbox" id="longUseWeb" checked />
+              <span>生成方案时附带联网摘要（与快问快答相同策略）</span>
+            </label>
+            <button type="button" id="btnReport" class="btn btn-primary">生成方案报告</button>
+          </div>
+          <div class="card card-elevated pad-lg">
+            <h2 class="h3">3. 报告输出</h2>
+            <pre id="longReportOut" class="report-pre">（尚未生成）</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- Knowledge base -->
+      <section class="view hidden" id="viewKb" data-view-panel="kb">
+        <div class="main-header">
+          <p class="workspace-tag">知识库 · 分组建索引</p>
+          <h1 class="page-title">知识库管理</h1>
+          <p class="page-desc">正式 PDF 与小红书 Excel 分开加载；重建后指纹与分块统计会更新。</p>
+        </div>
+        <div class="card card-elevated pad-lg stack gap-md">
+          <div class="kb-meta-row">
+            <span id="kbBadge" class="badge badge-neutral">知识库：读取中…</span>
+            <span id="kbInfo" class="muted small"></span>
+          </div>
+          <div id="kbGroupCards" class="kb-group-grid"></div>
+          <button type="button" id="rebuildBtn" class="btn btn-secondary">重建索引</button>
+          <p class="muted small">清单与解析样例见「KB 调试」页（需后端开启 ENABLE_KB_ADMIN）。</p>
+        </div>
+      </section>
+
+      <section class="view hidden" id="viewKbDebug" data-view-panel="kbdebug">
+        <div class="main-header">
+          <p class="workspace-tag">调试 · 可观测性</p>
+          <h1 class="page-title">KB 调试</h1>
+          <p class="page-desc">
+            查看已加载文件、分块/行数、解析样例与一次检索全链路（命中 → 合并 → 传入模型的顺序）。若接口返回 404，请在环境变量中开启
+            <code class="code">ENABLE_KB_ADMIN=true</code>。
+          </p>
+        </div>
+        <div class="stack gap-lg">
+          <div class="card card-elevated pad-lg stack gap-md">
+            <h2 class="h3">快照</h2>
+            <button type="button" id="kbDebugLoadSnap" class="btn btn-secondary">加载 /api/kb/debug</button>
+            <pre id="kbDebugSnapOut" class="kb-debug-pre">（尚未加载）</pre>
+          </div>
+          <div class="card card-elevated pad-lg stack gap-md">
+            <h2 class="h3">检索追踪</h2>
+            <label class="sr-only" for="kbDebugQuery">测试查询</label>
+            <textarea id="kbDebugQuery" class="input" rows="2" placeholder="输入测试问题，查看分阶段命中与 docs_passed_to_generation"></textarea>
+            <div class="scope-segment scope-segment-inline" id="kbDebugScopeSeg">
+              <button type="button" class="scope-btn active" data-kb-scope="hybrid">混合</button>
+              <button type="button" class="scope-btn" data-kb-scope="official_only">仅 PDF</button>
+              <button type="button" class="scope-btn" data-kb-scope="xiaohongshu_only">仅表</button>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="kbDebugWeb" />
+              <span>附带联网（与快问快答一致策略）</span>
+            </label>
+            <button type="button" id="kbDebugRunTrace" class="btn btn-primary">运行 /api/kb/debug/trace</button>
+            <pre id="kbDebugTraceOut" class="kb-debug-pre">（尚未运行）</pre>
+          </div>
+          <div class="card card-elevated pad-lg stack gap-md">
+            <h2 class="h3">小红书 Excel 核验</h2>
+            <p class="muted small">
+              专用流程：总行数 / 索引条数、均匀抽样 5 条解析样例、测试查询下列出命中行及「为何命中」、可选按表行号诊断（解析 / 截断 / 打分）。
+            </p>
+            <label class="sr-only" for="xhsVerifyQuery">核验查询</label>
+            <textarea id="xhsVerifyQuery" class="input" rows="2" placeholder="测试查询，例如：人大财政金融 保研 面试"></textarea>
+            <div class="row-inline">
+              <label class="small muted" for="xhsVerifyTopK">top_k</label>
+              <input type="number" id="xhsVerifyTopK" class="input input-num" value="8" min="1" max="64" />
+              <label class="small muted" for="xhsVerifyRow">核对行号（可选，Excel 表行，含表头=1）</label>
+              <input type="number" id="xhsVerifyRow" class="input input-num" placeholder="如 12" min="1" />
+            </div>
+            <button type="button" id="xhsVerifyRun" class="btn btn-primary">运行 /api/kb/xiaohongshu/verify</button>
+            <pre id="xhsVerifyOut" class="kb-debug-pre">（尚未运行）</pre>
+          </div>
+          <div class="card card-elevated pad-lg stack gap-md">
+            <h2 class="h3">官方 PDF 核验</h2>
+            <p class="muted small">
+              对 3 份学院正式 PDF：每份 chunk 数、3 条样例页、并对规则/政策问题跑 <code class="code">official_only</code> 检索，展示具体命中页。
+            </p>
+            <button type="button" id="officialVerifyRun" class="btn btn-primary">运行 /api/kb/official/verify</button>
+            <pre id="officialVerifyOut" class="kb-debug-pre">（尚未运行）</pre>
+          </div>
+          <div class="card card-elevated pad-lg stack gap-md">
+            <h2 class="h3">Web Access 集成测试</h2>
+            <p class="muted small">
+              主路径：web-access（CDP）；兜底：legacy <code class="code">tools/web_search.py</code>。可直接验证官方站点、知乎/微信/小红书风格检索及 fallback 行为。
+            </p>
+            <label class="sr-only" for="waTestQuery">Web Access 测试查询</label>
+            <textarea id="waTestQuery" class="input" rows="2" placeholder="例如：人大财政金融 推免 材料 要求"></textarea>
+            <div class="row-inline">
+              <label class="small muted" for="waTestScenario">场景</label>
+              <select id="waTestScenario" class="input input-select">
+                <option value="official_site">official website retrieval</option>
+                <option value="xhs_wechat_zhihu">xiaohongshu/zhihu/wechat-style retrieval</option>
+                <option value="auto">auto</option>
+              </select>
+              <label class="toggle">
+                <input type="checkbox" id="waForceFallback" />
+                <span>强制 fallback（验证降级链路）</span>
+              </label>
+            </div>
+            <button type="button" id="waTestRun" class="btn btn-primary">运行 /api/web-access/test</button>
+            <pre id="waTestOut" class="kb-debug-pre">（尚未运行）</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- Official docs placeholder -->
+      <section class="view hidden" id="viewOfficial" data-view-panel="official">
+        <div class="main-header">
+          <h1 class="page-title">官方文件</h1>
+          <p class="page-desc">学院推免、综合素质评价等权威材料，请在办事时核对原件。</p>
+        </div>
+        <div class="card card-elevated pad-lg empty-state loose">
+          <p class="muted">
+            可将项目内 PDF（如学院推免工作通知、评价办法）部署为静态下载或通过后端挂载。
+            当前界面用于强调：<strong class="text-foreground">「官方证据」</strong>在引用类型中的优先级。
+          </p>
+        </div>
+      </section>
+
+      <!-- Experience library -->
+      <section class="view hidden" id="viewExperience" data-view-panel="experience">
+        <div class="main-header">
+          <h1 class="page-title">经验库</h1>
+          <p class="page-desc">结构化经验帖与笔记摘要；引用时标为「经验」，可能与个人情况不符。</p>
+        </div>
+        <div class="card card-elevated pad-lg empty-state loose">
+          <p class="muted">
+            经验类内容来自 <code class="code">小红书保研笔记.xlsx</code> 等数据源，检索命中后在右侧显示为
+            <span class="badge badge-exp">经验</span>，并可能标注「疑似推广」。
+          </p>
+        </div>
+      </section>
+
+      <!-- Settings -->
+      <section class="view hidden" id="viewSettings" data-view-panel="settings">
+        <div class="main-header">
+          <h1 class="page-title">设置</h1>
+          <p class="page-desc">与检索行为相关的选项（更多项可随后端扩展）。</p>
+        </div>
+        <div class="card card-elevated pad-lg stack gap-md">
+          <label class="toggle">
+            <input type="checkbox" id="settingsWebMirror" disabled />
+            <span>默认开启联网（与快问快答联动，即将支持）</span>
+          </label>
+          <p class="muted small">联网开关仍在「快问快答」输入区；此处预留统一偏好。</p>
+        </div>
+      </section>
+    </main>
+
+    <aside class="evidence-panel" aria-label="证据与引用">
+      <div class="evidence-head">
+        <h2 class="evidence-title">证据与引用</h2>
+        <p class="muted small" id="evidenceSubtitle">在「快问快答」生成回答后，此处展示分层引用。</p>
+      </div>
+
+      <div id="evidenceEmpty" class="empty-state evidence-empty">
+        <div class="empty-icon small" aria-hidden="true">▤</div>
+        <p class="muted small">尚无引用。生成回答后将按类型分组。</p>
+      </div>
+
+      <div id="evidenceGroups" class="evidence-groups hidden"></div>
+
+      <div class="evidence-legend card pad-sm">
+        <p class="eyebrow">图例</p>
+        <ul class="legend-list muted small">
+          <li><span class="badge badge-cred-high">可信·高</span> indexed 学院正式文件</li>
+          <li><span class="badge badge-cred-med">可信·中</span> 经验笔记 / 部分网页</li>
+          <li><span class="badge badge-cred-low">可信·低</span> 短文本、未验证网页</li>
+          <li><span class="badge badge-fresh-old">可能过时</span> 经验类默认提示</li>
+          <li><span class="badge badge-fresh-web">未验证</span> 联网抓取内容</li>
+          <li><span class="badge badge-ad">推广风险</span> 营销/引流/过度承诺启发式命中</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+
+  <script src="/web/app.js"></script>
+</body>
+</html>

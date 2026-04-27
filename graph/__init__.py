@@ -1,1 +1,1 @@
-# placeholder
+"""LangGraph workflow package."""
