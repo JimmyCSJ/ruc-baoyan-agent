@@ -19,6 +19,7 @@ def build_initial_state(user_query: str) -> AgentState:
         "retrieved_docs": [],
         "final_answer": "",
         "chat_history": [],
+        "enable_web_search": False,
     }
 
 

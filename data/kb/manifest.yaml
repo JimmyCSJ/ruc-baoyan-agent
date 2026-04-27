@@ -1,0 +1,17 @@
+# Deterministic knowledge-base manifest (paths relative to repository root).
+version: 1
+
+official_documents:
+  - id: sfb-2026-general-exemption
+    title: 财政金融学院 2026 届本科生一般类型免试
+    path: 财政金融学院 2026 届本科生一般类型免试.pdf
+  - id: sfb-research-evaluation
+    title: 财政金融学院优秀应届本科毕业生免试攻读研究生推荐科研能力评价办法
+    path: 财政金融学院优秀应届本科毕业生免试攻读研究生推荐科研能力评价办法.pdf
+  - id: sfb-comprehensive-quality-2025
+    title: 财政金融学院优秀应届本科毕业生免试攻读研究生推荐综合素质拓展评价办法（2025年修订）
+    path: 财政金融学院优秀应届本科毕业生免试攻读研究生推荐综合素质拓展评价办法（2025年修订）.pdf
+
+experience:
+  excel_path: 小红书保研笔记.xlsx
+  sheet: 0
