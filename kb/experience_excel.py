@@ -1,4 +1,4 @@
-"""Xiaohongshu / experience notes from Excel — explicit columns & provenance."""
+"""Public info notes from Excel (Xiaohongshu) — explicit columns & provenance."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 
 from kb.internal import InternalChunk
-from kb.manifest import ExperienceConfig
+from kb.manifest import PublicInfoXHSConfig
 
 # Canonical field -> possible column headers (first match wins)
 _COLUMN_ALIASES: Dict[str, List[str]] = {
@@ -45,10 +45,35 @@ def _cell_str(row: Dict[str, Any], key: str) -> str:
     return text
 
 
-def load_experience_excel(cfg: ExperienceConfig, root: Path) -> tuple[List[InternalChunk], List[str], Dict[str, Any]]:
-    path = (root / cfg.excel_path).resolve()
-    if not path.exists():
-        raise FileNotFoundError(f"Experience Excel not found: {path}")
+def _resolve_excel_path(cfg: PublicInfoXHSConfig, root: Path) -> Path | None:
+    candidates: List[Path] = [
+        (root / cfg.excel_path).resolve(),
+        (root / "小红书保研笔记.xlsx").resolve(),
+    ]
+    xhs_dir = (root / "data/public_info_xhs").resolve()
+    if xhs_dir.is_dir():
+        candidates.extend(sorted(xhs_dir.glob("*.xlsx")))
+    seen: set[str] = set()
+    for p in candidates:
+        key = str(p)
+        if key in seen:
+            continue
+        seen.add(key)
+        if p.is_file():
+            return p
+    return None
+
+
+def load_experience_excel(cfg: PublicInfoXHSConfig, root: Path) -> tuple[List[InternalChunk], List[str], Dict[str, Any]]:
+    path = _resolve_excel_path(cfg, root)
+    if path is None:
+        expected = (root / cfg.excel_path).resolve()
+        warn = (
+            f"未找到小红书经验库 Excel（期望路径：{expected}）。"
+            "请将「小红书保研笔记.xlsx」放到 data/public_info_xhs/ 或项目根目录后，"
+            "在管理页执行「重建索引」；当前将仅使用手工统计与其它公众资料。"
+        )
+        return [], [warn], {"chunks_indexed": 0, "error": "file_not_found", "expected_path": str(expected)}
 
     # Suppress harmless openpyxl warning for some exported workbooks.
     warnings.filterwarnings(
@@ -99,7 +124,7 @@ def load_experience_excel(cfg: ExperienceConfig, root: Path) -> tuple[List[Inter
         body_truncated = len(body) > 400
         brief = body[:400] + ("…" if body_truncated else "")
         text = brief.strip()
-        doc_id = f"experience:xlsx:r{excel_row}"
+        doc_id = f"experience:public_info_xhs:r{excel_row}"
         try:
             rel_path = str(path.relative_to(root))
         except ValueError:
@@ -108,8 +133,8 @@ def load_experience_excel(cfg: ExperienceConfig, root: Path) -> tuple[List[Inter
             InternalChunk(
                 doc_id=doc_id,
                 source_group="experience",
-                kb_group="xiaohongshu_excel",
-                source_tag="xiaohongshu_excel",
+                kb_group="public_info_xhs",
+                source_tag="public_info_xhs_excel",
                 title=title or "（无标题笔记）",
                 text=text,
                 base_confidence=0.56,

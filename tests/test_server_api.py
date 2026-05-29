@@ -130,6 +130,23 @@ def test_kb_retrieve_preview_returns_verbose_trace() -> None:
     assert body["sources_count"] == len(body["sources"])
 
 
+def test_exam_tutoring_api_returns_public_first_guidance() -> None:
+    client = TestClient(server.app)
+    client.post("/api/kb/rebuild")
+    r = client.post(
+        "/api/exam-tutoring",
+        json={"query": "人大财政金融学院金融专硕笔试考什么？"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["answer"]
+    assert body["question_type"] == "exam_tutoring"
+    assert body["sources"]
+    assert body["execution_steps"]
+    assert any("经验库" in step for step in body["execution_steps"])
+    assert any(d.get("source_group") == "experience" for d in body["sources"])
+
+
 def test_web_access_test_endpoint(monkeypatch) -> None:
     import server as s
 
@@ -166,9 +183,9 @@ def test_kb_debug_bundle_when_admin_enabled(monkeypatch) -> None:
         server,
         "get_settings",
         lambda: Settings(
-            deepseek_api_key="",
-            deepseek_base_url="https://api.deepseek.com",
-            deepseek_model="deepseek-chat",
+            moark_api_key="",
+            moark_base_url="https://api.moark.com/v1",
+            moark_model="GLM-5.1",
             enable_real_llm=False,
             failover_enabled=True,
             llm_temperature=0.7,
@@ -200,9 +217,9 @@ def test_kb_debug_disabled_when_admin_off(monkeypatch) -> None:
         server,
         "get_settings",
         lambda: Settings(
-            deepseek_api_key="",
-            deepseek_base_url="https://api.deepseek.com",
-            deepseek_model="deepseek-chat",
+            moark_api_key="",
+            moark_base_url="https://api.moark.com/v1",
+            moark_model="GLM-5.1",
             enable_real_llm=False,
             failover_enabled=True,
             llm_temperature=0.7,
@@ -229,9 +246,9 @@ def test_admin_kb_inspect_when_enabled(monkeypatch) -> None:
         server,
         "get_settings",
         lambda: Settings(
-            deepseek_api_key="",
-            deepseek_base_url="https://api.deepseek.com",
-            deepseek_model="deepseek-chat",
+            moark_api_key="",
+            moark_base_url="https://api.moark.com/v1",
+            moark_model="GLM-5.1",
             enable_real_llm=False,
             failover_enabled=True,
             llm_temperature=0.7,
@@ -257,4 +274,4 @@ def test_admin_kb_inspect_when_enabled(monkeypatch) -> None:
     assert "parse_verification" in data
     pv = data["parse_verification"]
     assert pv.get("excel", {}).get("chunks_indexed", 0) >= 0
-    assert len(pv.get("official_documents", [])) >= 1
+    assert pv.get("official_documents_brochures", {}) or pv.get("official_documents", {})

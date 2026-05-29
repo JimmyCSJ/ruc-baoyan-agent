@@ -6,7 +6,12 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Literal
 
 SourceGroup = Literal["official", "experience"]
-KBGroup = Literal["official_finance_pdfs", "xiaohongshu_excel"]
+KBGroup = Literal[
+    "official_documents_brochures",
+    "public_info_xhs",
+    "public_info_manual_stats",
+    "public_info_baoyan_basics",
+]
 
 
 @dataclass(frozen=True)

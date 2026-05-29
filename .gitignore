@@ -5,3 +5,12 @@ __pycache__/
 .DS_Store
 .vscode/
 .idea/
+data/auth/users.json
+data/auth/sessions.json
+data/auth/profiles/
+
+# Local/runtime artifacts
+uvicorn_*.log
+data/chroma_db/
+data/ruc_stats.db
+.claude/

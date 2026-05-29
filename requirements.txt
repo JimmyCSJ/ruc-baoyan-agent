@@ -1,3 +1,4 @@
+fpdf2==2.8.4
 fastapi==0.136.0
 openpyxl==3.1.5
 pandas==3.0.2
@@ -23,6 +24,7 @@ langgraph-checkpoint==4.0.1
 langgraph-prebuilt==1.0.9
 langgraph-sdk==0.3.13
 langsmith==0.7.30
+Markdown>=3.6
 openai==2.31.0
 orjson==3.11.8
 ormsgpack==1.12.2
@@ -48,3 +50,6 @@ urllib3==2.6.3
 uuid_utils==0.14.1
 xxhash==3.6.0
 zstandard==0.25.0
+chromadb>=0.5.0
+FlagEmbedding>=1.3.0
+rank-bm25>=0.2.2

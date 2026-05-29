@@ -1,4 +1,4 @@
-"""Inspectable official PDF KB: per-file counts, samples, and official-only retrieval tests."""
+"""Inspectable official brochure KB: per-file counts, samples, and official-only retrieval tests."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from agents.retrieval import retrieve_documents_with_trace
-from kb.manifest import OfficialEntry, load_manifest, repo_root
+from kb.manifest import load_manifest, repo_root
 from kb.registry import REGISTRY
 from kb.service import ensure_loaded
 from kb.tokenize import tokenize_query
@@ -26,23 +26,22 @@ def _evenly_spaced(items: List[dict], n: int) -> List[dict]:
     return out
 
 
-def _sample_chunks_for_entry(entry: OfficialEntry, n: int, base: Path) -> List[Dict[str, Any]]:
+def _sample_chunks_for_files(files: List[str], n: int, base: Path) -> List[Dict[str, Any]]:
     ensure_loaded(base)
     official_chunks, _exp, _meta = REGISTRY.snapshot()
-    sub = [c for c in official_chunks if c.provenance.get("manifest_id") == entry.id]
-    sub = sorted(sub, key=lambda c: int(c.provenance.get("page") or 0))
+    wanted = set(files)
+    sub = [c for c in official_chunks if str(c.provenance.get("file") or "") in wanted]
+    sub = sorted(sub, key=lambda c: str(c.provenance.get("file") or ""))
     out: List[Dict[str, Any]] = []
     for c in _evenly_spaced(
         [
             {
                 "doc_id": c.doc_id,
-                "page": c.provenance.get("page"),
                 "title": c.title,
                 "preview": (c.text[:500] + "…") if len(c.text) > 500 else c.text,
                 "char_count": len(c.text),
-                "scan_like": ("未提取到文本" in c.text) or bool(c.provenance.get("empty_extract")),
-                "extracted_chars": c.provenance.get("extracted_chars"),
-                "normalized_chars": c.provenance.get("normalized_chars"),
+                "file": c.provenance.get("file"),
+                "truncated": bool(c.provenance.get("truncated")),
             }
             for c in sub
         ],
@@ -52,27 +51,24 @@ def _sample_chunks_for_entry(entry: OfficialEntry, n: int, base: Path) -> List[D
     return out
 
 
-def _chunk_count_for_entry(entry: OfficialEntry, base: Path) -> Dict[str, Any]:
+def _chunk_count_for_files(files: List[str], base: Path) -> Dict[str, Any]:
     ensure_loaded(base)
     official_chunks, _exp, _meta = REGISTRY.snapshot()
-    sub = [c for c in official_chunks if c.provenance.get("manifest_id") == entry.id]
-    scan_like = sum(1 for c in sub if ("未提取到文本" in c.text) or bool(c.provenance.get("empty_extract")))
+    wanted = set(files)
+    sub = [c for c in official_chunks if str(c.provenance.get("file") or "") in wanted]
+    truncated = sum(1 for c in sub if bool(c.provenance.get("truncated")))
     chars_total = sum(len(c.text) for c in sub)
     return {
-        "manifest_id": entry.id,
-        "title": entry.title,
-        "path": entry.path,
+        "files": files,
         "chunk_count": len(sub),
-        "pages_scan_like_or_empty": scan_like,
+        "truncated_files": truncated,
         "chars_total": chars_total,
-        "quality_hint": "ok"
-        if len(sub) > 0 and scan_like == 0 and chars_total / max(1, len(sub)) >= 120
-        else "possibly_poor_extract",
+        "quality_hint": "ok" if len(sub) > 0 and chars_total / max(1, len(sub)) >= 120 else "possibly_poor_extract",
     }
 
 
 def _official_only_retrieval_tests(
-    entry: OfficialEntry,
+    files: List[str],
     questions: List[str],
     top_k: int,
 ) -> List[Dict[str, Any]]:
@@ -85,11 +81,12 @@ def _official_only_retrieval_tests(
             kb_debug=True,
             kb_scope="official_only",
         )
-        # Filter to this PDF's chunks only (same manifest_id).
+        # Filter to the requested brochure files only.
+        wanted = set(files)
         filtered = []
         for d in docs:
             prov = d.get("provenance") or {}
-            if isinstance(prov, dict) and prov.get("manifest_id") == entry.id:
+            if isinstance(prov, dict) and str(prov.get("file") or "") in wanted:
                 filtered.append(d)
         filtered = filtered[:top_k]
         rows = []
@@ -100,7 +97,7 @@ def _official_only_retrieval_tests(
             rows.append(
                 {
                     "doc_id": d.get("doc_id"),
-                    "page": prov.get("page") if isinstance(prov, dict) else None,
+                    "file": prov.get("file") if isinstance(prov, dict) else None,
                     "title": d.get("title"),
                     "match_score": d.get("match_score"),
                     "query_tokens": tokenize_query(q),
@@ -113,7 +110,7 @@ def _official_only_retrieval_tests(
                 "question": q,
                 "kb_scope": "official_only",
                 "query_tokens": tokenize_query(q),
-                "retrieved_chunks_for_this_pdf": rows,
+                "retrieved_chunks_for_these_files": rows,
                 "trace_top_stage": trace.get("stages", [None])[0] if isinstance(trace, dict) else None,
             }
         )
@@ -131,50 +128,33 @@ def build_official_pdfs_verify_report(
     manifest = load_manifest(base)
     ensure_loaded(base)
 
-    default_q: Dict[str, List[str]] = {
-        "sfb-2026-general-exemption": [
-            "一般类型免试推荐的基本条件是什么？",
-            "推免流程有哪些关键时间节点/截止时间？",
-            "需要提交哪些材料（例如成绩、排名、证明）？",
-        ],
-        "sfb-research-evaluation": [
-            "科研能力评价办法的评分维度与分值如何规定？",
-            "科研成果/论文/项目如何计分？是否有上限？",
-        ],
-        "sfb-comprehensive-quality-2025": [
-            "综合素质拓展评价的项目类别有哪些？如何认定？",
-            "综合素质评价是否有分项上限或计分规则？",
-        ],
-    }
-    qmap = questions_by_manifest_id or default_q
+    # Use a small set of generic policy queries to sanity-check official_only retrieval.
+    default_questions = [
+        "招生简章里对申请条件/资格有哪些要求？",
+        "需要准备哪些材料？有没有截止时间（DDL）？",
+        "面试/考核一般包含哪些环节？",
+    ]
+    questions = (list(questions_by_manifest_id.values())[0] if questions_by_manifest_id else default_questions)
 
-    pdfs: List[Dict[str, Any]] = []
-    for entry in sorted(manifest.official_documents, key=lambda e: e.id):
-        count = _chunk_count_for_entry(entry, base)
-        samples = _sample_chunks_for_entry(entry, sample_chunks_per_pdf, base)
-        tests = _official_only_retrieval_tests(entry, qmap.get(entry.id, []), top_k_per_question)
-        pdfs.append(
-            {
-                "meta": count,
-                "samples": samples,
-                "retrieval_tests": tests,
-                "readability_check": {
-                    "expectation": "若 preview 中出现连续可读中文条款/编号/表述，且 pages_scan_like_or_empty=0，则解析质量通常可用。",
-                    "how_to_judge": [
-                        "是否大量乱码/断字/每行只剩 1-2 个字？",
-                        "是否整页都是「未提取到文本」提示？",
-                        "是否能看到条款关键词：应当/必须/不得/提交/材料/评价/计分等。",
-                    ],
-                },
-            }
-        )
+    # In schema v2, official brochures are a directory; we verify by sampling files.
+    from kb.official_brochures import list_brochure_entries
+
+    entries = list_brochure_entries(base, Path(manifest.official_documents_brochures.directory))
+    files = [e.file for e in entries]
+    sample_files = [e.file for e in entries[: min(len(entries), 12)]]
+
+    count = _chunk_count_for_files(files, base)
+    samples = _sample_chunks_for_files(sample_files, sample_chunks_per_pdf, base)
+    tests = _official_only_retrieval_tests(sample_files, questions, top_k_per_question)
 
     return {
-        "kb_group": "official_finance_pdfs",
-        "pdf_count": len(pdfs),
+        "kb_group": "official_documents_brochures",
+        "brochure_files_total": len(files),
         "sample_chunks_per_pdf": sample_chunks_per_pdf,
         "top_k_per_question": top_k_per_question,
         "note_scoring": "当前 official_only 检索为轻量 lexical scorer：query 分词 token 在 chunk(标题+正文) 中出现则计 1 分，按分数降序。",
-        "pdfs": pdfs,
+        "meta": count,
+        "samples": samples,
+        "retrieval_tests": tests,
     }
 

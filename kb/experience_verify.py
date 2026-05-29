@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 
 from kb.internal import InternalChunk
-from kb.manifest import ExperienceConfig, load_manifest, repo_root
+from kb.manifest import PublicInfoXHSConfig, load_manifest, repo_root
 from kb.registry import REGISTRY
 from kb.service import ensure_loaded
 from kb.tokenize import tokenize_query
@@ -68,7 +68,7 @@ def _simulate_experience_retrieval(
     return [], "no_chunks"
 
 
-def _read_raw_excel_row(cfg: ExperienceConfig, root: Path, excel_row_1based: int) -> Optional[Dict[str, Any]]:
+def _read_raw_excel_row(cfg: PublicInfoXHSConfig, root: Path, excel_row_1based: int) -> Optional[Dict[str, Any]]:
     path = (root / cfg.excel_path).resolve()
     if not path.exists() or excel_row_1based < 2:
         return None
@@ -93,7 +93,7 @@ def diagnose_excel_row(
     excel_row: int,
     chunks: List[InternalChunk],
     parse_meta: Dict[str, Any],
-    cfg: ExperienceConfig,
+    cfg: PublicInfoXHSConfig,
     root: Path,
 ) -> Dict[str, Any]:
     chunk = next((c for c in chunks if int(c.provenance.get("excel_row") or -1) == excel_row), None)
@@ -232,12 +232,12 @@ def build_xiaohongshu_verify_report(
     ensure_loaded(base)
     _, chunks, meta = REGISTRY.snapshot()
     manifest = load_manifest(base)
-    cfg = manifest.experience
+    cfg = manifest.public_info_xhs
 
     parse_report = dict(meta.parse_report) if meta and meta.parse_report else {}
     excel_meta = dict(parse_report.get("excel") or {})
 
-    exp_chunks = [c for c in chunks if c.kb_group == "xiaohongshu_excel"]
+    exp_chunks = [c for c in chunks if c.kb_group == "public_info_xhs"]
     exp_chunks_sorted = sorted(exp_chunks, key=lambda c: int(c.provenance.get("excel_row") or 0))
     samples: List[Dict[str, Any]] = []
     for c in _evenly_spaced_chunks(exp_chunks_sorted, sample_count):

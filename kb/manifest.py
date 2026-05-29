@@ -1,4 +1,9 @@
-"""Load `data/kb/manifest.yaml`."""
+"""Load `data/kb/manifest.yaml`.
+
+Schema v2:
+- official_documents_brochures: a directory containing pre-extracted official brochure TXT files
+- public_info_xhs: an Excel file (public notes) under data/public_info_xhs/
+"""
 
 from __future__ import annotations
 
@@ -12,23 +17,33 @@ _MANIFEST_REL = Path("data/kb/manifest.yaml")
 
 
 @dataclass(frozen=True)
-class OfficialEntry:
-    id: str
-    title: str
-    path: str
+class OfficialBrochuresConfig:
+    directory: str
 
 
 @dataclass(frozen=True)
-class ExperienceConfig:
+class PublicInfoXHSConfig:
     excel_path: str
     sheet: int | str
 
 
 @dataclass(frozen=True)
+class PublicInfoManualStatsConfig:
+    txt_path: str
+
+
+@dataclass(frozen=True)
+class PublicInfoBaoyanBasicsConfig:
+    md_path: str
+
+
+@dataclass(frozen=True)
 class KBManifest:
     version: int
-    official_documents: List[OfficialEntry]
-    experience: ExperienceConfig
+    official_documents_brochures: OfficialBrochuresConfig
+    public_info_xhs: PublicInfoXHSConfig
+    public_info_manual_stats: PublicInfoManualStatsConfig
+    public_info_baoyan_basics: PublicInfoBaoyanBasicsConfig
 
 
 def repo_root() -> Path:
@@ -39,13 +54,27 @@ def load_manifest(root: Path | None = None) -> KBManifest:
     base = root or repo_root()
     path = base / _MANIFEST_REL
     raw: Dict[str, Any] = yaml.safe_load(path.read_text(encoding="utf-8"))
-    official_raw = raw.get("official_documents") or []
-    official = [
-        OfficialEntry(id=str(o["id"]), title=str(o["title"]), path=str(o["path"])) for o in official_raw
-    ]
-    exp = raw.get("experience") or {}
-    experience = ExperienceConfig(
-        excel_path=str(exp.get("excel_path", "小红书保研笔记.xlsx")),
-        sheet=exp.get("sheet", 0),
+    off = raw.get("official_documents_brochures") or {}
+    official_brochures = OfficialBrochuresConfig(
+        directory=str(off.get("directory", "data/official_documents_brochures")),
     )
-    return KBManifest(version=int(raw.get("version", 1)), official_documents=official, experience=experience)
+    pub = raw.get("public_info_xhs") or {}
+    public_info_xhs = PublicInfoXHSConfig(
+        excel_path=str(pub.get("excel_path", "data/public_info_xhs/小红书保研笔记.xlsx")),
+        sheet=pub.get("sheet", 0),
+    )
+    manual = raw.get("public_info_manual_stats") or {}
+    public_info_manual_stats = PublicInfoManualStatsConfig(
+        txt_path=str(manual.get("txt_path", "data/public_info_manual_stats/ruc_2026_manual_stats.txt")),
+    )
+    basics = raw.get("public_info_baoyan_basics") or {}
+    public_info_baoyan_basics = PublicInfoBaoyanBasicsConfig(
+        md_path=str(basics.get("md_path", "data/public_info_baoyan_basics/baoyan_basics.md")),
+    )
+    return KBManifest(
+        version=int(raw.get("version", 2)),
+        official_documents_brochures=official_brochures,
+        public_info_xhs=public_info_xhs,
+        public_info_manual_stats=public_info_manual_stats,
+        public_info_baoyan_basics=public_info_baoyan_basics,
+    )

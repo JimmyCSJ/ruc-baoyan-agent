@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">中国人民大学校徽</title>
+  <desc id="desc">Renmin University of China red seal mark</desc>
+  <defs>
+    <path id="topArc" d="M 94 256 A 162 162 0 0 1 418 256" />
+    <path id="bottomArc" d="M 418 256 A 162 162 0 0 1 94 256" />
+  </defs>
+  <rect width="512" height="512" fill="#fff"/>
+  <circle cx="256" cy="256" r="222" fill="none" stroke="#b4002d" stroke-width="8"/>
+  <circle cx="256" cy="256" r="198" fill="none" stroke="#b4002d" stroke-width="4"/>
+  <circle cx="256" cy="256" r="126" fill="none" stroke="#b4002d" stroke-width="10"/>
+  <text fill="#b4002d" font-family="Arial, Helvetica, sans-serif" font-size="35" font-weight="700" letter-spacing="3">
+    <textPath href="#topArc" startOffset="50%" text-anchor="middle">RENMIN UNIVERSITY OF CHINA</textPath>
+  </text>
+  <text fill="#b4002d" font-family="PingFang SC, Microsoft YaHei, SimSun, sans-serif" font-size="29" font-weight="700" letter-spacing="12">
+    <textPath href="#bottomArc" startOffset="50%" text-anchor="middle">中国人民大学</textPath>
+  </text>
+  <g fill="none" stroke="#b4002d" stroke-linecap="round" stroke-linejoin="round" stroke-width="18">
+    <path d="M174 208 C207 200 205 151 218 125 C231 165 211 209 242 209 C274 209 273 161 286 126 C299 165 281 209 313 209 C345 209 342 161 356 126 C371 172 355 217 340 249 C323 287 329 323 344 358"/>
+    <path d="M218 125 C230 187 199 230 190 258 C180 292 195 321 202 358"/>
+    <path d="M286 126 C296 186 270 230 260 259 C248 292 261 323 270 358"/>
+    <path d="M356 126 C362 187 345 226 336 252"/>
+  </g>
+  <text x="256" y="404" text-anchor="middle" fill="#b4002d" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700">1937</text>
+</svg>

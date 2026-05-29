@@ -1,17 +1,21 @@
 # Deterministic knowledge-base manifest (paths relative to repository root).
-version: 1
+version: 2
 
-official_documents:
-  - id: sfb-2026-general-exemption
-    title: 财政金融学院 2026 届本科生一般类型免试
-    path: 财政金融学院 2026 届本科生一般类型免试.pdf
-  - id: sfb-research-evaluation
-    title: 财政金融学院优秀应届本科毕业生免试攻读研究生推荐科研能力评价办法
-    path: 财政金融学院优秀应届本科毕业生免试攻读研究生推荐科研能力评价办法.pdf
-  - id: sfb-comprehensive-quality-2025
-    title: 财政金融学院优秀应届本科毕业生免试攻读研究生推荐综合素质拓展评价办法（2025年修订）
-    path: 财政金融学院优秀应届本科毕业生免试攻读研究生推荐综合素质拓展评价办法（2025年修订）.pdf
+# 官方数据库：已导入的招生简章 TXT（预处理后文本）
+official_documents_brochures:
+  directory: data/official_documents_brochures
 
-experience:
-  excel_path: 小红书保研笔记.xlsx
+# 公共信息库：小红书笔记 Excel（已移动到 data/public_info_xhs）
+public_info_xhs:
+  excel_path: data/public_info_xhs/小红书保研笔记.xlsx
   sheet: 0
+
+# 公共信息库补充：手工整理的各学院录取与专业结构统计（TXT）
+public_info_manual_stats:
+  txt_path: data/public_info_manual_stats/ruc_2026_manual_stats.txt
+
+# 公共信息库补充：用户整理的保研通识与流程说明（非人大官方政策）
+public_info_baoyan_basics:
+  md_path: data/public_info_baoyan_basics/baoyan_basics.md
+
+# force_rebuild

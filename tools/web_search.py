@@ -29,7 +29,7 @@ _UA = (
 
 
 def expand_query_variants(query: str) -> List[str]:
-    """生成 2～4 条查询变体，提高 DDG 中文召回。"""
+    """生成 2～5 条查询变体，提高 DDG 中文召回。"""
     q = (query or "").strip()
     if not q:
         return []
@@ -53,7 +53,11 @@ def expand_query_variants(query: str) -> List[str]:
             break
     if len(q) > 40:
         add(q[:38].rstrip() + "…")
-    return out[:4]
+    # 定向小红书/知乎：追加一条带 site 定向的变体
+    if any(k in q for k in ("保研", "推免", "夏令营", "考研", "经验", "考核", "面试")):
+        _short = _short_kw(q, 30)
+        add(f"{_short} site:zhihu.com OR site:xiaohongshu.com")
+    return out[:5]
 
 
 def _short_kw(q: str, limit: int = 32) -> str:
@@ -186,7 +190,9 @@ def _enrich_url(href: str, snippet: str) -> tuple[str, float]:
     return body.strip(), conf
 
 
-def _ddg_text(ddgs: object, q: str, max_results: int) -> List[Dict[str, str]]:
+def _ddg_text(ddgs: object, q: str, max_results: int | None = None) -> List[Dict[str, str]]:
+    if max_results is None:
+        max_results = _MAX_DDGS_PER_CALL
     for backend in ("auto", "html"):
         try:
             fn = getattr(ddgs, "text")
@@ -198,7 +204,7 @@ def _ddg_text(ddgs: object, q: str, max_results: int) -> List[Dict[str, str]]:
     return []
 
 
-def search_web_vertical(query: str) -> List[RetrievedDoc]:
+def search_web_vertical(query: str, *, lite: bool = False) -> List[RetrievedDoc]:
     if not query or not query.strip():
         return []
     try:
@@ -211,38 +217,59 @@ def search_web_vertical(query: str) -> List[RetrievedDoc]:
     short = _short_kw(primary)
 
     planned: List[Tuple[str, str]] = []
-    for v in variants[:2]:
-        planned.append(("web_general", v))
-    planned.append(("web_general", f"{short} 保研"))
-    planned.append(("web_zhihu", f"{_short_kw(short, 24)} site:zhihu.com"))
-    planned.append(("web_wechat", f"{_short_kw(short, 24)} site:mp.weixin.qq.com"))
-    planned.append(("web_xhs", f"{_short_kw(short, 20)} site:xiaohongshu.com"))
-    if any(k in query for k in ("人大", "人民大学", "中国人民大学", "RUC", "ruc")):
-        planned.append(("web_ruc", f"{_short_kw(short, 26)} site:ruc.edu.cn"))
-        planned.append(("web_ruc", "中国人民大学 推免 site:ruc.edu.cn"))
+    if lite:
+        planned.append(("web_general", primary))
+        if any(k in query for k in ("人大", "人民大学", "中国人民大学", "RUC", "ruc")):
+            planned.append(("web_ruc", f"{_short_kw(short, 28)} site:ruc.edu.cn"))
+        else:
+            planned.append(("web_general", f"{short} 保研"))
+    else:
+        for v in variants[:2]:
+            planned.append(("web_general", v))
+        planned.append(("web_general", f"{short} 保研"))
+        planned.append(("web_zhihu", f"{_short_kw(short, 24)} site:zhihu.com"))
+        planned.append(("web_wechat", f"{_short_kw(short, 24)} site:mp.weixin.qq.com"))
+        planned.append(("web_xhs", f"{_short_kw(short, 20)} site:xiaohongshu.com"))
+        if any(k in query for k in ("人大", "人民大学", "中国人民大学", "RUC", "ruc")):
+            planned.append(("web_ruc", f"{_short_kw(short, 26)} site:ruc.edu.cn"))
+            planned.append(("web_ruc", "中国人民大学 推免 site:ruc.edu.cn"))
 
     seen: set[str] = set()
     queue: List[Tuple[str, Dict[str, str]]] = []
+    ddg_cap = 4 if lite else _MAX_DDGS_PER_CALL
 
-    try:
-        with DDGS() as ddgs:
-            for tag, q in planned:
-                q = q.strip()
-                if not q:
-                    continue
-                for item in _ddg_text(ddgs, q, _MAX_DDGS_PER_CALL):
-                    href = (item.get("href") or "").strip()
-                    title = (item.get("title") or "").strip()
-                    dedupe = href or f"{title}|{q}"
-                    if dedupe in seen:
+    proxy = os.getenv("WEB_SEARCH_PROXY") or None
+    ddgs_ok = False
+    # Try with proxy first; if it fails, retry without proxy (direct connection)
+    for attempt_proxy in (proxy, None):
+        try:
+            with DDGS(proxy=attempt_proxy) as ddgs:
+                for tag, q in planned:
+                    q = q.strip()
+                    if not q:
                         continue
-                    seen.add(dedupe)
-                    queue.append((tag, item))
-    except Exception:
-        return []
+                    for item in _ddg_text(ddgs, q, ddg_cap):
+                        href = (item.get("href") or "").strip()
+                        title = (item.get("title") or "").strip()
+                        dedupe = href or f"{title}|{q}"
+                        if dedupe in seen:
+                            continue
+                        seen.add(dedupe)
+                        queue.append((tag, item))
+            ddgs_ok = True
+            break
+        except Exception as exc:
+            import logging
+            logging.warning("DDGS search failed (proxy=%s): %s", attempt_proxy, exc)
+            if attempt_proxy is None:
+                # Both attempts failed
+                pass
+    if not ddgs_ok and not queue:
+        import logging
+        logging.warning("DDGS search completely failed, skipping to Baidu fallback")
 
     docs: List[RetrievedDoc] = []
-    fetch_left = _MAX_FETCH if _FETCH_ON else 0
+    fetch_left = 0 if lite else (_MAX_FETCH if _FETCH_ON else 0)
 
     for tag, item in queue:
         if len(docs) >= _MAX_TOTAL_DOCS:
@@ -287,3 +314,109 @@ def search_web_vertical(query: str) -> List[RetrievedDoc]:
         )
 
     return docs
+
+
+# ---------------------------------------------------------------------------
+# 百度备用通道 — DuckDuckGo 在国内常被墙，百度可直连且中文召回更好
+# ---------------------------------------------------------------------------
+
+_BAIDU_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+)
+
+
+def _parse_baidu_html(html: str) -> List[Dict[str, str]]:
+    """Extract title / snippet / href from Baidu result HTML."""
+    results: List[Dict[str, str]] = []
+    # Baidu results are in <div class="result c-container" ...>
+    blocks = re.findall(
+        r'<div[^>]*class="[^"]*result[^"]*c-container[^"]*"[^>]*>(.*?)'
+        r'(?=<div[^>]*class="[^"]*result[^"]*c-container[^"]*"|<div[^>]*id="page")',
+        html, re.DOTALL,
+    )
+    if not blocks:
+        blocks = re.findall(
+            r'<div[^>]*class="[^"]*c-container[^"]*"[^>]*>(.*?)'
+            r'(?=<div[^>]*class="[^"]*c-container[^"]*"|$)',
+            html, re.DOTALL,
+        )
+    for block in blocks:
+        # Title: <h3>...<a href="...">title</a>...</h3>
+        h3_m = re.search(r'<h3[^>]*>.*?<a[^>]*href="([^"]*)"[^>]*>(.*?)</a>', block, re.DOTALL)
+        if not h3_m:
+            continue
+        href = h3_m.group(1)
+        title = re.sub(r'<[^>]+>', '', h3_m.group(2)).strip()
+        # Snippet: collect text from various abstract/summary spans
+        snippet_parts: List[str] = []
+        for cls_pat in ['c-abstract', 'c-span-last', 'content-right_']:
+            for m in re.finditer(rf'class="[^"]*{cls_pat}[^"]*"[^>]*>(.*?)</(?:span|div)>', block, re.DOTALL):
+                txt = re.sub(r'<[^>]+>', ' ', m.group(1))
+                txt = re.sub(r'\s+', ' ', txt).strip()
+                if txt and len(txt) > 5:
+                    snippet_parts.append(txt)
+        snippet = " · ".join(snippet_parts)[:800]
+        if href and title:
+            results.append({"title": title, "body": snippet, "href": href})
+    return results
+
+
+def search_web_baidu(query: str, max_results: int = 8) -> List[RetrievedDoc]:
+    """Search Baidu via HTTP scraping — no proxy / API key needed, excellent Chinese recall."""
+    if not query or not query.strip():
+        return []
+    try:
+        import httpx
+    except ImportError:
+        return []
+
+    q = query.strip()[:200]
+    all_results: List[Dict[str, str]] = []
+    seen_hrefs: set[str] = set()
+
+    # Also search RUC-specific variant
+    variants = [q]
+    if "中国人民大学" not in q and "人大" not in q:
+        variants.append(f"中国人民大学 {q}")
+
+    for search_q in variants:
+        search_url = f"https://www.baidu.com/s?wd={search_q}&rn={min(max_results, 20)}"
+        try:
+            with httpx.Client(
+                timeout=httpx.Timeout(15.0, connect=8.0),
+                follow_redirects=True,
+                headers={"User-Agent": _BAIDU_UA, "Accept-Language": "zh-CN,zh;q=0.9"},
+            ) as client:
+                r = client.get(search_url)
+                r.raise_for_status()
+                parsed = _parse_baidu_html(r.text)
+                for item in parsed:
+                    href = item.get("href", "")
+                    if href not in seen_hrefs:
+                        seen_hrefs.add(href)
+                        all_results.append(item)
+        except Exception:
+            continue
+        if len(all_results) >= max_results:
+            break
+
+    docs: List[RetrievedDoc] = []
+    for item in all_results[:max_results]:
+        title = item.get("title", "(无标题)")
+        body = item.get("body", "")
+        href = item.get("href", "")
+        content = body if body else ""
+        if href:
+            content = (content + f"\n链接：{href}").strip() if content else f"链接：{href}"
+        docs.append({
+            "source": "web_baidu",
+            "title": title,
+            "content": content[:4000],
+            "confidence": 0.55,
+            "source_group": "web",
+            "kb_group": "web",
+            "provenance": {"url": href, "retrieval_path": "baidu_http"},
+        })
+    return docs
+

@@ -5,21 +5,43 @@ const kbBadge = document.getElementById("kbBadge");
 const kbInfo = document.getElementById("kbInfo");
 const enableWeb = document.getElementById("enableWeb");
 const faqChips = document.getElementById("faqChips");
+const examQueryInput = document.getElementById("examQueryInput");
+const examSendBtn = document.getElementById("examSendBtn");
+const examEnableWeb = document.getElementById("examEnableWeb");
+const examFaqChips = document.getElementById("examFaqChips");
+const examEmpty = document.getElementById("examEmpty");
+const examLoading = document.getElementById("examLoading");
+const examAnswerCard = document.getElementById("examAnswerCard");
+const examAnswerQuestion = document.getElementById("examAnswerQuestion");
+const examAnswerMeta = document.getElementById("examAnswerMeta");
+const examAnswerBody = document.getElementById("examAnswerBody");
+const examReferencesBox = document.getElementById("examReferencesBox");
+const examReferences = document.getElementById("examReferences");
+const examExecStepsList = document.getElementById("examExecStepsList");
 
-const longGoal = document.getElementById("longGoal");
-const longIntakeJson = document.getElementById("longIntakeJson");
-const longReportOut = document.getElementById("longReportOut");
-const longUseWeb = document.getElementById("longUseWeb");
-const btnClarify = document.getElementById("btnClarify");
-const btnLoadTemplate = document.getElementById("btnLoadTemplate");
-const btnReport = document.getElementById("btnReport");
-const clarifyBox = document.getElementById("clarifyBox");
+const longReportPreview = document.getElementById("longReportPreview");
+const longReportPlaceholder = document.getElementById("longReportPlaceholder");
+const longReportJson = document.getElementById("longReportJson");
+const longPlanErr = document.getElementById("longPlanErr");
+
+let lastLongPlanPayload = null;
+let lastLongPlanReport = null;
+/** 最近一次生成成功的原始 Markdown，用于 PDF 直连转换（避免重复调用模型） */
+let lastLongPlanMarkdown = "";
+let lastLongPlanHtmlUrl = "";
+let lastDocs = [];
+let lastLongPlanRefs = [];
 
 const quickEmpty = document.getElementById("quickEmpty");
 const quickLoading = document.getElementById("quickLoading");
+const quickProgressCaption = document.getElementById("quickProgressCaption");
+const quickProgressFill = document.getElementById("quickProgressFill");
+const quickProgressSteps = document.getElementById("quickProgressSteps");
 const answerCard = document.getElementById("answerCard");
 const answerQuestion = document.getElementById("answerQuestion");
 const answerMeta = document.getElementById("answerMeta");
+const execStepsList = document.getElementById("execStepsList");
+const execFilesBox = document.getElementById("execFilesBox");
 const secConclusion = document.getElementById("secConclusion");
 const secRecommendation = document.getElementById("secRecommendation");
 const secRecommendationEmpty = document.getElementById("secRecommendationEmpty");
@@ -29,6 +51,12 @@ const secNext = document.getElementById("secNext");
 const secNextEmpty = document.getElementById("secNextEmpty");
 const answerRaw = document.getElementById("answerRaw");
 
+const btnAnswerPdf = document.getElementById("btnAnswerPdf");
+const secReferencesBox = document.getElementById("secReferencesBox");
+const secReferences = document.getElementById("secReferences");
+const longPlanProgress = document.getElementById("longPlanProgress");
+const progressBarFill = document.getElementById("progressBarFill");
+const progressStepLabel = document.getElementById("progressStepLabel");
 const evidenceEmpty = document.getElementById("evidenceEmpty");
 const evidenceGroups = document.getElementById("evidenceGroups");
 const evidenceSubtitle = document.getElementById("evidenceSubtitle");
@@ -57,16 +85,22 @@ const waTestOut = document.getElementById("waTestOut");
 
 let kbScope = "hybrid";
 let kbDebugScope = "hybrid";
+if (enableWeb) enableWeb.checked = true;
 
 const views = {
   quick: document.getElementById("viewQuick"),
+  exam: document.getElementById("viewExam"),
+  interview: document.getElementById("viewInterview"),
   long: document.getElementById("viewLong"),
-  kb: document.getElementById("viewKb"),
-  kbdebug: document.getElementById("viewKbDebug"),
-  official: document.getElementById("viewOfficial"),
-  experience: document.getElementById("viewExperience"),
-  settings: document.getElementById("viewSettings"),
+  profile: document.getElementById("viewProfile"),
 };
+
+const sidebarUserName = document.getElementById("sidebarUserName");
+const btnLogout = document.getElementById("btnLogout");
+const btnSaveProfile = document.getElementById("btnSaveProfile");
+const btnApplyProfileToLong = document.getElementById("btnApplyProfileToLong");
+const profileSaveMsg = document.getElementById("profileSaveMsg");
+const profileUpdatedAt = document.getElementById("profileUpdatedAt");
 
 const navButtons = document.querySelectorAll(".nav-item");
 
@@ -82,11 +116,20 @@ function wireScopeSegment(container, onSelect) {
 }
 
 const FAQ_LIST = [
-  "中国人民大学保研申请条件有哪些？",
-  "人大金融专硕夏令营一般考察什么？",
-  "保研简历里科研经历怎么写？",
-  "预推免和夏令营有什么区别？",
-  "保研经验：如何准备面试？",
+  "中国人民大学财政金融学院金融专硕保研一般考察哪些维度？我该怎么分阶段准备？",
+  "中国人民大学财政金融学院金融、金融科技、保险、税务等方向近年招收规模和考核差异怎么看？",
+  "中国人民大学财政金融学院保研材料怎么准备更有竞争力？简历、科研、英语分别怎么证明？",
+  "中国人民大学信息学院电子信息/人工智能方向保研通常看什么？",
+  "中国人民大学商学院会计方向保研通常看什么？材料、笔试、面试分别怎么准备？",
+  "中国人民大学法学院法律硕士保研接收通常关注哪些能力？",
+];
+
+const EXAM_FAQ_LIST = [
+  "中国人民大学财政金融学院金融专硕保研笔试考什么？题型和复习重点有哪些？",
+  "中国人民大学财政金融学院金融科技方向保研笔试会不会考编程？还会考哪些专业内容？",
+  "中国人民大学信息学院电子信息/人工智能方向保研笔试通常考什么？",
+  "中国人民大学商学院会计方向保研笔试内容和题型有哪些？",
+  "中国人民大学法学院法律硕士保研笔试或专业考核通常怎么准备？",
 ];
 
 function escapeHtml(text) {
@@ -102,77 +145,286 @@ function formatTiming(t) {
   return `路由 ${t.route_ms}ms · 检索 ${t.retrieve_ms}ms · 回答 ${t.answer_ms}ms · 合计 ${t.total_ms}ms`;
 }
 
-/** 将模型返回的纯文本转为 HTML 片段（不含外层包装）。 */
+function inlineMarkdown(text) {
+  return escapeHtml(text)
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\[(\d+)\]/g, "<sup>[$1]</sup>");
+}
+
+function stripReferenceSection(text) {
+  return String(text || "")
+    .replace(/\n?#{1,6}\s*【?参考文献】?[\s\S]*$/m, "")
+    .replace(/\n?参考文献\s*\n(?:\[\d+\][\s\S]*)?$/m, "")
+    .trim();
+}
+
+function renderMarkdownTable(lines) {
+  const rows = lines
+    .filter((line, idx) => idx !== 1)
+    .map((line) =>
+      line
+        .trim()
+        .replace(/^\|/, "")
+        .replace(/\|$/, "")
+        .split("|")
+        .map((cell) => inlineMarkdown(cell.trim())),
+    );
+  if (!rows.length) return "";
+  const head = rows[0].map((cell) => `<th>${cell}</th>`).join("");
+  const body = rows
+    .slice(1)
+    .map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`)
+    .join("");
+  return `<div class="prose-table-wrap"><table class="prose-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+/** 将模型返回的 Markdown/纯文本转为 HTML 片段（不含外层包装）。 */
 function formatAssistantBody(text) {
-  const src = String(text || "");
-  let t = escapeHtml(src);
-  t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  const src = stripReferenceSection(text);
+  if (!src) return "<p class=\"muted\">（无内容）</p>";
 
-  const lines = t.split("\n");
+  const lines = src.split("\n");
   const parts = [];
-  let textBuf = [];
-
-  function flushText() {
-    if (!textBuf.length) return;
-    if (textBuf.length === 1) {
-      const chunk = textBuf[0];
-      const idx = chunk.search(/\d+\.\s+/);
-      const head = idx > 0 ? chunk.slice(0, idx).trim() : "";
-      const tail = idx >= 0 ? chunk.slice(idx > 0 ? idx : 0) : chunk;
-      const splitPoints = tail.split(/\s+(?=\d+\.\s+)/).filter(Boolean);
-      if (splitPoints.length >= 1) {
-        const items = [];
-        let allMatch = true;
-        for (const p of splitPoints) {
-          const m = p.match(/^\d+\.\s+(.*)$/);
-          if (!m) {
-            allMatch = false;
-            break;
-          }
-          items.push(m[1]);
-        }
-        if (allMatch && items.length >= 2) {
-          if (head) parts.push(`<p>${head}</p>`);
-          parts.push(`<ol>${items.map((x) => `<li>${x}</li>`).join("")}</ol>`);
-          textBuf = [];
-          return;
-        }
-        if (allMatch && items.length === 1 && head) {
-          parts.push(`<p>${head}</p>`);
-          parts.push(`<ol>${items.map((x) => `<li>${x}</li>`).join("")}</ol>`);
-          textBuf = [];
-          return;
-        }
-      }
-    }
-    parts.push(`<p>${textBuf.join("<br>")}</p>`);
-    textBuf = [];
-  }
+  let paraBuf = [];
   let listBuf = [];
+  let listType = "";
+  let quoteBuf = [];
+
+  function flushPara() {
+    if (!paraBuf.length) return;
+    parts.push(`<p>${paraBuf.map((x) => inlineMarkdown(x)).join("<br>")}</p>`);
+    paraBuf = [];
+  }
+
   function flushList() {
     if (!listBuf.length) return;
-    parts.push(`<ol>${listBuf.map((item) => `<li>${item}</li>`).join("")}</ol>`);
+    const tag = listType === "ul" ? "ul" : "ol";
+    parts.push(`<${tag}>${listBuf.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("")}</${tag}>`);
     listBuf = [];
+    listType = "";
   }
 
-  for (const line of lines) {
-    const m = line.match(/^\s*(\d+)\.\s+(.*)$/);
-    if (m) {
-      flushText();
-      listBuf.push(m[2]);
-    } else {
-      flushList();
-      if (line.trim() === "") {
-        flushText();
-      } else {
-        textBuf.push(line);
-      }
+  function flushQuote() {
+    if (!quoteBuf.length) return;
+    parts.push(`<blockquote>${quoteBuf.map((x) => inlineMarkdown(x)).join("<br>")}</blockquote>`);
+    quoteBuf = [];
+  }
+
+  function flushAll() {
+    flushQuote();
+    flushList();
+    flushPara();
+  }
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      flushAll();
+      i += 1;
+      continue;
     }
-  }
-  flushList();
-  flushText();
 
+    if (trimmed.includes("|") && i + 1 < lines.length && /^\s*\|?\s*:?-{3,}/.test(lines[i + 1])) {
+      flushAll();
+      const tableLines = [line, lines[i + 1]];
+      i += 2;
+      while (i < lines.length && lines[i].trim().includes("|")) {
+        tableLines.push(lines[i]);
+        i += 1;
+      }
+      parts.push(renderMarkdownTable(tableLines));
+      continue;
+    }
+
+    const heading = trimmed.match(/^(#{1,6})\s+(.+)$/);
+    if (heading) {
+      flushAll();
+      const level = Math.min(4, Math.max(3, heading[1].length + 1));
+      parts.push(`<h${level} class="prose-heading">${inlineMarkdown(heading[2])}</h${level}>`);
+      i += 1;
+      continue;
+    }
+
+    if (/^-{3,}$/.test(trimmed)) {
+      flushAll();
+      parts.push("<hr class=\"prose-hr\" />");
+      i += 1;
+      continue;
+    }
+
+    const quote = trimmed.match(/^>\s?(.*)$/);
+    if (quote) {
+      flushList();
+      flushPara();
+      quoteBuf.push(quote[1]);
+      i += 1;
+      continue;
+    }
+
+    const unordered = trimmed.match(/^[-*]\s+(.+)$/);
+    if (unordered) {
+      flushQuote();
+      flushPara();
+      if (listType && listType !== "ul") flushList();
+      listType = "ul";
+      listBuf.push(unordered[1]);
+      i += 1;
+      continue;
+    }
+
+    const ordered = trimmed.match(/^\d+\.\s+(.+)$/);
+    if (ordered) {
+      flushQuote();
+      flushPara();
+      if (listType && listType !== "ol") flushList();
+      listType = "ol";
+      listBuf.push(ordered[1]);
+      i += 1;
+      continue;
+    }
+
+    flushQuote();
+    flushList();
+    paraBuf.push(line);
+    i += 1;
+  }
+
+  flushAll();
   return parts.length ? parts.join("") : "<p class=\"muted\">（无内容）</p>";
+}
+
+/** 长程规划 Markdown（含 ## / ### / 列表）转为预览 HTML。 */
+function formatLongPlanMarkdown(src) {
+  const raw = String(src || "").trim();
+  if (!raw) return "<p class=\"muted\">（无内容）</p>";
+  const lines = raw.split("\n");
+  const blocks = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const t = line.trim();
+    if (t.startsWith("### ")) {
+      blocks.push(`<h3 class="lp-h3">${escapeHtml(t.slice(4))}</h3>`);
+      i += 1;
+      continue;
+    }
+    if (t.startsWith("## ")) {
+      blocks.push(`<h2 class="lp-h2">${escapeHtml(t.slice(3))}</h2>`);
+      i += 1;
+      continue;
+    }
+    if (t === "---") {
+      blocks.push("<hr class=\"lp-hr\" />");
+      i += 1;
+      continue;
+    }
+    if (t.startsWith("- ") || t.startsWith("* ")) {
+      const items = [];
+      while (i < lines.length) {
+        const li = lines[i].trim();
+        if (!li.startsWith("- ") && !li.startsWith("* ")) break;
+        let body = escapeHtml(li.slice(2));
+        body = body.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+        items.push(`<li>${body}</li>`);
+        i += 1;
+      }
+      blocks.push(`<ul class="lp-ul">${items.join("")}</ul>`);
+      continue;
+    }
+    if (t === "") {
+      i += 1;
+      continue;
+    }
+    let para = escapeHtml(line);
+    para = para.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    blocks.push(`<p class="lp-p">${para}</p>`);
+    i += 1;
+  }
+  return blocks.join("") || "<p class=\"muted\">（无内容）</p>";
+}
+
+const LONG_PLAN_REQUIRED_LABELS = {
+  current_school: "当前就读学校",
+  grade_year: "就读年级",
+  college: "就读学院",
+  major: "就读专业",
+  gpa: "GPA",
+  major_rank_percentile: "专业排名（百分比）",
+};
+
+const LONG_PLAN_COMPOSITE_REQUIRED_LABELS = {
+  target_school: "目标学校",
+  target_college: "目标院校",
+  target_degree_type: "目标类型",
+  english_scores: "英语成绩",
+};
+
+function collectCheckedValues(root, selector) {
+  if (!root) return [];
+  return Array.from(root.querySelectorAll(selector))
+    .filter((el) => el.checked)
+    .map((el) => String(el.value || "").trim())
+    .filter(Boolean);
+}
+
+function compactJoin(parts, sep) {
+  return parts.map((x) => String(x || "").trim()).filter(Boolean).join(sep);
+}
+
+function collectLongPlanPayload() {
+  const use_web = document.getElementById("longUseWeb")?.checked ?? true;
+  const required = {};
+  const optional = {};
+  const root = document.getElementById("viewLong");
+  if (root) {
+    root.querySelectorAll("[data-lp-req]").forEach((el) => {
+      const name = el.getAttribute("name");
+      if (!name) return;
+      required[name] = String(el.value ?? "").trim();
+    });
+    root.querySelectorAll("[data-lp-opt]").forEach((el) => {
+      const name = el.getAttribute("name");
+      if (!name) return;
+      optional[name] = String(el.value ?? "").trim();
+    });
+    const targetSchool = String(root.querySelector("[name='target_school']")?.value ?? "").trim();
+    const targetCollege = String(root.querySelector("[name='target_college']")?.value ?? "").trim();
+    const targetDegreeTypes = collectCheckedValues(root, "[data-lp-target-degree]");
+    const englishIelts = String(root.querySelector("[name='english_ielts']")?.value ?? "").trim();
+    const englishToefl = String(root.querySelector("[name='english_toefl']")?.value ?? "").trim();
+    const englishCet6 = String(root.querySelector("[name='english_cet6']")?.value ?? "").trim();
+    required.target_school = targetSchool;
+    required.target_college = targetCollege;
+    required.target_degree_type = targetDegreeTypes.join(" / ");
+    required.target_destination = compactJoin(
+      [targetSchool, targetCollege, targetDegreeTypes.length ? targetDegreeTypes.join(" / ") : ""],
+      " · ",
+    );
+    required.english_scores = compactJoin(
+      [
+        englishIelts ? `雅思 ${englishIelts}` : "",
+        englishToefl ? `托福 ${englishToefl}` : "",
+        englishCet6 ? `六级 ${englishCet6}` : "",
+      ],
+      "；",
+    );
+  }
+  return { use_web, required, optional };
+}
+
+/** 仅校验必填模块；选填为空不影响。 */
+function missingRequiredLongPlanFields(payload) {
+  const missing = [];
+  for (const k of Object.keys(LONG_PLAN_REQUIRED_LABELS)) {
+    if (!(payload.required[k] || "").trim()) missing.push(LONG_PLAN_REQUIRED_LABELS[k]);
+  }
+  for (const k of Object.keys(LONG_PLAN_COMPOSITE_REQUIRED_LABELS)) {
+    if (!(payload.required[k] || "").trim()) missing.push(LONG_PLAN_COMPOSITE_REQUIRED_LABELS[k]);
+  }
+  return missing;
 }
 
 function parseAnswerSections(text) {
@@ -219,19 +471,19 @@ function parseAnswerSections(text) {
   return out;
 }
 
-/** 模型按约定输出的三段结构（### 【官方结论】等） */
+/** 模型按约定输出的三段结构（### 【检索过程】等） */
 function parseTripleHeadingAnswer(text) {
   const raw = String(text || "").trim();
-  if (!/【官方结论】/.test(raw) && !/【经验参考】/.test(raw)) {
-    return { official: "", experience: "", uncertainty: "", next: "" };
+  if (!/【总结回答】/.test(raw) && !/【不确定性/.test(raw) && !/【检索过程】/.test(raw)) {
+    return { retrieval: "", summary: "", uncertainty: "", next: "" };
   }
   const lines = raw.split("\n");
-  const buckets = { official: [], experience: [], uncertainty: [], next: [] };
+  const buckets = { retrieval: [], summary: [], uncertainty: [], next: [] };
   const preamble = [];
   let current = null;
   const headerRes = [
-    { re: /^(#{1,6}\s*)?【官方结论】[:：]?\s*$/, key: "official" },
-    { re: /^(#{1,6}\s*)?【经验参考】[:：]?\s*$/, key: "experience" },
+    { re: /^(#{1,6}\s*)?【检索过程】[:：]?\s*$/, key: "retrieval" },
+    { re: /^(#{1,6}\s*)?【总结回答】[:：]?\s*$/, key: "summary" },
     { re: /^(#{1,6}\s*)?【不确定性\s*\/\s*冲突说明】[:：]?\s*$/, key: "uncertainty" },
     { re: /^(#{1,6}\s*)?【不确定性/, key: "uncertainty" },
     { re: /^(#{1,6}\s*)?【下一步/, key: "next" },
@@ -257,12 +509,12 @@ function parseTripleHeadingAnswer(text) {
     else buckets[current].push(line);
   }
   if (preamble.length) {
-    (buckets.official.length ? buckets.official : buckets.experience).push(...preamble);
+    (buckets.summary.length ? buckets.summary : buckets.retrieval).push(...preamble);
   }
 
   return {
-    official: buckets.official.join("\n").trim(),
-    experience: buckets.experience.join("\n").trim(),
+    retrieval: buckets.retrieval.join("\n").trim(),
+    summary: buckets.summary.join("\n").trim(),
     uncertainty: buckets.uncertainty.join("\n").trim(),
     next: buckets.next.join("\n").trim(),
   };
@@ -270,10 +522,12 @@ function parseTripleHeadingAnswer(text) {
 
 function parseAnswerForUICard(text) {
   const triple = parseTripleHeadingAnswer(text);
-  if (triple.official || triple.experience || triple.uncertainty || triple.next) {
+  if (triple.summary || triple.retrieval || triple.uncertainty || triple.next) {
     return {
-      official: triple.official,
-      experience: triple.experience,
+      official: triple.summary,
+      // Retrieval process is already rendered in dedicated execution blocks.
+      // Do not mix it into "经验参考" card.
+      experience: "",
       uncertainty: triple.uncertainty,
       next: triple.next,
     };
@@ -296,6 +550,11 @@ function legacyCredibilityFromConfidence(conf) {
 }
 
 function credibilityBadgeFromDoc(doc) {
+  if (doc.evidence_quality_label) {
+    const tier = Number(doc.evidence_quality_tier || 4);
+    const cls = tier <= 2 ? "badge-cred-high" : tier === 3 ? "badge-cred-med" : "badge-cred-low";
+    return { cls, label: doc.evidence_quality_label };
+  }
   const level = doc.credibility_level;
   if (level === "high") return { cls: "badge-cred-high", label: "可信·高" };
   if (level === "medium") return { cls: "badge-cred-med", label: "可信·中" };
@@ -313,11 +572,11 @@ function freshnessBadgeFromDoc(doc) {
 
 function classifySource(doc) {
   const st = doc.source_type;
-  if (st === "official_school_document" || doc.source === "official_pdf") {
+  if (st === "official_school_document" || doc.source === "official_pdf" || doc.source === "official_brochure") {
     return { kind: "official", groupLabel: "正式文件", badgeClass: "badge-official", badgeText: "正式文件" };
   }
-  if (st === "experience_note" || doc.source === "xiaohongshu_excel") {
-    return { kind: "experience", groupLabel: "经验笔记", badgeClass: "badge-exp", badgeText: "经验" };
+  if (st === "experience_note" || doc.source === "public_info_xhs_excel" || doc.source === "xiaohongshu_excel") {
+    return { kind: "experience", groupLabel: "公众信息", badgeClass: "badge-exp", badgeText: "公众" };
   }
   const s = String(doc.source || "").toLowerCase();
   if (st === "web_citation" || s.startsWith("web_")) {
@@ -335,6 +594,9 @@ function classifySource(doc) {
   }
   if (s === "brochure") {
     return { kind: "official_doc", groupLabel: "简章类", badgeClass: "badge-doc", badgeText: "简章" };
+  }
+  if (s === "official_brochure") {
+    return { kind: "official_doc", groupLabel: "官方简章", badgeClass: "badge-doc", badgeText: "官方简章" };
   }
   if (s === "fallback") {
     return { kind: "model", groupLabel: "系统提示", badgeClass: "badge-model", badgeText: "模型" };
@@ -418,12 +680,16 @@ function renderEvidencePanel(sources) {
       const href = extractLink(doc.content);
       const role = doc.evidence_role ? roleLabel(doc.evidence_role) : "";
       const reasons = Array.isArray(doc.ad_risk_reasons) ? doc.ad_risk_reasons.filter(Boolean) : [];
+      const notes = Array.isArray(doc.credibility_notes) ? doc.credibility_notes.filter(Boolean) : [];
       const reasonLine =
         ad && reasons.length
           ? `<p class="evidence-warn-line">推广风险线索：${escapeHtml(reasons.join("；"))}</p>`
           : ad
             ? `<p class="evidence-warn-line">启发式命中推广/引流风险，请自行甄别。</p>`
             : "";
+      const notesLine = notes.length
+        ? `<p class="evidence-note-line">可信度说明：${escapeHtml(notes.join("；"))}</p>`
+        : "";
 
       const item = document.createElement("div");
       item.className = "evidence-item";
@@ -454,6 +720,7 @@ function renderEvidencePanel(sources) {
         </div>
         <p class="evidence-item-title">${title}</p>
         <p class="evidence-snippet">${escapeHtml(snip)}</p>
+        ${notesLine}
         ${reasonLine}
         ${
           href
@@ -471,6 +738,7 @@ function renderEvidencePanel(sources) {
 }
 
 function setSectionContent(el, emptyEl, text) {
+  if (!el) return;
   const t = String(text || "").trim();
   if (t) {
     el.innerHTML = formatAssistantBody(t);
@@ -482,9 +750,27 @@ function setSectionContent(el, emptyEl, text) {
 }
 
 function showAnswerCard(query, data) {
-  const card = parseAnswerForUICard(data.answer || "");
+  // Store for PDF download
+  lastQuickAnswerText = stripReferenceSection(data.answer || "");
+  lastQuickAnswerRefs = Array.isArray(data.references) ? data.references : [];
+
+  const cleanAnswer = stripReferenceSection(data.answer || "");
+  const card = parseAnswerForUICard(cleanAnswer);
   answerQuestion.textContent = query;
   answerMeta.textContent = `问题类型：${data.question_type || "—"} · ${formatTiming(data.timing)}`;
+
+  if (execStepsList) {
+    const steps = Array.isArray(data.execution_steps) ? data.execution_steps : [];
+    execStepsList.innerHTML = steps.length
+      ? steps.map((s) => `<li>${escapeHtml(String(s))}</li>`).join("")
+      : `<li class="muted small">（未返回步骤信息）</li>`;
+  }
+  if (execFilesBox) {
+    const files = Array.isArray(data.official_files_read) ? data.official_files_read : [];
+    execFilesBox.innerHTML = files.length
+      ? `本次参考的官方材料：${files.map((f) => `<code class="code">${escapeHtml(String(f))}</code>`).join(" ")}`
+      : `本次参考的官方材料：<span class="muted">（无 / 未命中 / 未启用官方检索）</span>`;
+  }
 
   if (card.official.trim()) {
     secConclusion.innerHTML = formatAssistantBody(card.official);
@@ -496,7 +782,28 @@ function showAnswerCard(query, data) {
   setSectionContent(secRisks, secRisksEmpty, card.uncertainty);
   setSectionContent(secNext, secNextEmpty, card.next);
 
-  answerRaw.innerHTML = formatAssistantBody(data.answer || "");
+  answerRaw.innerHTML = formatAssistantBody(cleanAnswer);
+
+  // Render references
+  const refs = Array.isArray(data.references) ? data.references : [];
+  if (refs.length && secReferencesBox && secReferences) {
+    secReferencesBox.classList.remove("hidden");
+    secReferences.innerHTML = refs
+      .map((r) => {
+        const url = r.url || "";
+        const entry = escapeHtml(r.entry || "");
+        const idx = r.index || "";
+        const link = url
+          ? ` <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">[链接]</a>`
+          : "";
+        return `<div class="ref-entry">[${idx}] ${entry}${link}</div>`;
+      })
+      .join("");
+  } else if (secReferencesBox) {
+    secReferencesBox.classList.add("hidden");
+  }
+
+  if (btnAnswerPdf) btnAnswerPdf.classList.remove("hidden");
 
   quickEmpty.classList.add("hidden");
   quickLoading.classList.add("hidden");
@@ -511,6 +818,45 @@ function resetEvidencePanelPlaceholder() {
   evidenceSubtitle.textContent = "在「快问快答」生成回答后，此处展示分层引用。";
 }
 
+let lastQuickAnswerText = "";
+let lastQuickAnswerRefs = [];
+
+async function downloadAnswerPdf() {
+  if (!btnAnswerPdf) return;
+  const query = queryInput ? queryInput.value.trim() : "";
+  const answer = lastQuickAnswerText;
+  if (!answer) return;
+  btnAnswerPdf.disabled = true;
+  btnAnswerPdf.textContent = "生成中…";
+  try {
+    const res = await apiFetch("/api/chat/pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query,
+        answer,
+        references: lastQuickAnswerRefs,
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(errText || res.statusText);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ruc-baoyan-answer.pdf";
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    window.alert("PDF 生成失败：" + (e.message || e));
+  } finally {
+    btnAnswerPdf.disabled = false;
+    btnAnswerPdf.textContent = "下载 PDF";
+  }
+}
+
 function setActiveView(viewId) {
   navButtons.forEach((btn) => {
     btn.classList.toggle("active", btn.getAttribute("data-view") === viewId);
@@ -519,6 +865,120 @@ function setActiveView(viewId) {
     if (!el) return;
     el.classList.toggle("hidden", id !== viewId);
   });
+  if (viewId === "profile") {
+    loadUserProfile().catch(() => {});
+  }
+}
+
+function collectProfilePayload() {
+  const body = {};
+  document.querySelectorAll("[data-profile]").forEach((el) => {
+    const name = el.getAttribute("name");
+    if (!name) return;
+    body[name] = String(el.value ?? "").trim();
+  });
+  body.target_degree_types = [];
+  document.querySelectorAll("[data-profile-degree]:checked").forEach((el) => {
+    body.target_degree_types.push(el.value);
+  });
+  return body;
+}
+
+function fillProfileForm(profile) {
+  if (!profile) return;
+  document.querySelectorAll("[data-profile]").forEach((el) => {
+    const name = el.getAttribute("name");
+    if (!name || profile[name] === undefined) return;
+    el.value = String(profile[name] ?? "");
+  });
+  const degrees = profile.target_degree_types || [];
+  document.querySelectorAll("[data-profile-degree]").forEach((el) => {
+    el.checked = degrees.includes(el.value);
+  });
+  if (profileUpdatedAt) {
+    profileUpdatedAt.textContent = profile.updated_at
+      ? `上次保存：${profile.updated_at}`
+      : "尚未保存过个人信息";
+  }
+}
+
+function applyProfileToLongPlanForm(profile) {
+  const p = profile || {};
+  const root = document.getElementById("viewLong");
+  if (!root) return;
+  const map = {
+    current_school: p.current_school,
+    grade_year: p.grade_year,
+    college: p.college,
+    major: p.major,
+    gpa: p.gpa,
+    major_rank_percentile: p.major_rank_percentile,
+    target_school: p.target_school,
+    target_college: p.target_college,
+    english_ielts: p.english_ielts,
+    english_toefl: p.english_toefl,
+    english_cet6: p.english_cet6,
+    research_and_competitions: p.research_and_competitions,
+    internships: p.internships,
+    region_preference: p.region_preference,
+    student_work_clubs: p.student_work_clubs,
+    career_path_3_5y: p.career_path_3_5y,
+    expected_roles_or_industry: p.expected_roles_or_industry,
+    admission_prep_stage: p.admission_prep_stage,
+    main_concerns: p.main_concerns,
+  };
+  Object.entries(map).forEach(([name, val]) => {
+    const el = root.querySelector(`[name="${name}"]`);
+    if (el && val !== undefined) el.value = String(val || "");
+  });
+  const degrees = p.target_degree_types || [];
+  root.querySelectorAll("[data-lp-target-degree]").forEach((el) => {
+    el.checked = degrees.includes(el.value);
+  });
+}
+
+async function loadUserProfile() {
+  const res = await apiFetch("/api/auth/profile");
+  if (!res.ok) throw new Error("加载个人信息失败");
+  const profile = await res.json();
+  fillProfileForm(profile);
+  return profile;
+}
+
+async function saveUserProfile() {
+  const body = collectProfilePayload();
+  const res = await apiFetch("/api/auth/profile", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const detail = data.detail;
+    throw new Error(typeof detail === "string" ? detail : "保存失败");
+  }
+  fillProfileForm(data);
+  if (profileSaveMsg) {
+    profileSaveMsg.textContent = "已保存";
+    profileSaveMsg.classList.remove("hidden");
+    profileSaveMsg.classList.add("ok");
+  }
+  return data;
+}
+
+async function ensureAuthenticated() {
+  const ok = await verifyAuthSession();
+  if (!ok) {
+    window.location.href = "/";
+    return false;
+  }
+  const user = getAuthUser();
+  if (sidebarUserName) sidebarUserName.textContent = user || "已登录";
+  try {
+    await loadUserProfile();
+  } catch {
+    /* profile may be empty on first visit */
+  }
+  return true;
 }
 
 navButtons.forEach((btn) => {
@@ -528,7 +988,28 @@ navButtons.forEach((btn) => {
   });
 });
 
+document.querySelectorAll("[data-copy-target]").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const targetId = btn.getAttribute("data-copy-target");
+    const target = targetId ? document.getElementById(targetId) : null;
+    const text = target ? String(target.value || target.textContent || "") : "";
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      const old = btn.textContent;
+      btn.textContent = "已复制";
+      window.setTimeout(() => {
+        btn.textContent = old;
+      }, 1200);
+    } catch {
+      if (target && typeof target.select === "function") target.select();
+      window.alert("复制失败，请手动复制文本框内容。");
+    }
+  });
+});
+
 function renderFaqChips() {
+  if (!faqChips || !queryInput) return;
   faqChips.innerHTML = "";
   FAQ_LIST.forEach((q) => {
     const b = document.createElement("button");
@@ -540,6 +1021,22 @@ function renderFaqChips() {
       queryInput.focus();
     });
     faqChips.appendChild(b);
+  });
+}
+
+function renderExamFaqChips() {
+  if (!examFaqChips || !examQueryInput) return;
+  examFaqChips.innerHTML = "";
+  EXAM_FAQ_LIST.forEach((q) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.textContent = q;
+    b.addEventListener("click", () => {
+      examQueryInput.value = q;
+      examQueryInput.focus();
+    });
+    examFaqChips.appendChild(b);
   });
 }
 
@@ -567,22 +1064,24 @@ function renderKbGroupCards(groups) {
 
 async function fetchKbStatus() {
   try {
-    const res = await fetch("/api/kb/status");
+    const res = await apiFetch("/api/kb/status");
     const data = await res.json();
-    kbBadge.textContent = data.loaded ? "知识库：已加载" : "知识库：未加载";
-    kbInfo.textContent = `经验索引条数 ${data.row_count} · 正式 ${data.official_chunk_count ?? "—"} · 经验 ${data.experience_chunk_count ?? "—"} · 更新 ${data.loaded_at || "—"} · 指纹 ${data.checksum || "—"}`;
+    if (kbBadge) kbBadge.textContent = data.loaded ? "知识库：已加载" : "知识库：未加载";
+    if (kbInfo)
+      kbInfo.textContent = `经验索引条数 ${data.row_count} · 正式 ${data.official_chunk_count ?? "—"} · 经验 ${data.experience_chunk_count ?? "—"} · 更新 ${data.loaded_at || "—"} · 指纹 ${data.checksum || "—"}`;
     renderKbGroupCards(data.kb_groups);
   } catch (err) {
-    kbBadge.textContent = "知识库：读取失败";
-    kbInfo.textContent = String(err);
+    if (kbBadge) kbBadge.textContent = "知识库：读取失败";
+    if (kbInfo) kbInfo.textContent = String(err);
   }
 }
 
 async function rebuildKb() {
+  if (!rebuildBtn) return;
   rebuildBtn.disabled = true;
   rebuildBtn.textContent = "重建中…";
   try {
-    const res = await fetch("/api/kb/rebuild", { method: "POST" });
+    const res = await apiFetch("/api/kb/rebuild", { method: "POST" });
     const data = await res.json();
     await fetchKbStatus();
     kbInfo.textContent += ` · 已重建，当前 ${data.row_count} 条`;
@@ -594,6 +1093,63 @@ async function rebuildKb() {
   }
 }
 
+async function consumeNdjsonResponse(res, onEvent) {
+  if (!res.ok) {
+    const errText = await res.text();
+    let detail = errText;
+    try {
+      const j = JSON.parse(errText);
+      detail = j.detail || errText;
+    } catch {
+      /* plain text */
+    }
+    throw new Error(typeof detail === "string" ? detail : res.statusText || "请求失败");
+  }
+  const reader = res.body?.getReader();
+  if (!reader) throw new Error("浏览器不支持流式响应");
+  const decoder = new TextDecoder();
+  let buf = "";
+  let streamErr = null;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split("\n");
+    buf = lines.pop() ?? "";
+    for (const line of lines) {
+      const s = line.trim();
+      if (!s) continue;
+      let ev;
+      try {
+        ev = JSON.parse(s);
+      } catch {
+        continue;
+      }
+      if (ev.stream_error) streamErr = ev.stream_error;
+      if (onEvent) onEvent(ev);
+    }
+  }
+  if (streamErr) throw new Error(streamErr);
+}
+
+function setQuickProgress(label, pct, steps, files) {
+  if (quickProgressCaption) quickProgressCaption.textContent = label || "处理中…";
+  if (quickProgressFill && typeof pct === "number") {
+    quickProgressFill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+  }
+  if (quickProgressSteps) {
+    const items = [];
+    if (Array.isArray(steps) && steps.length) items.push(...steps);
+    if (Array.isArray(files) && files.length) {
+      items.push(`已读官方文件：${files.slice(0, 5).join("、")}${files.length > 5 ? " 等" : ""}`);
+    }
+    if (!items.length && label) items.push(label);
+    quickProgressSteps.innerHTML = items
+      .map((s) => `<li>${escapeHtml(String(s))}</li>`)
+      .join("");
+  }
+}
+
 async function sendQuery() {
   const query = queryInput.value.trim();
   if (!query) return;
@@ -602,11 +1158,12 @@ async function sendQuery() {
   quickEmpty.classList.add("hidden");
   answerCard.classList.add("hidden");
   quickLoading.classList.remove("hidden");
+  setQuickProgress("正在提交问题…", 5, ["正在连接服务…"]);
   resetEvidencePanelPlaceholder();
   evidenceSubtitle.textContent = "正在检索并整理引用…";
 
   try {
-    const res = await fetch("/api/chat", {
+    const res = await apiFetch("/api/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -615,14 +1172,27 @@ async function sendQuery() {
         kb_scope: kbScope,
       }),
     });
-    const data = await res.json();
-    showAnswerCard(query, data);
+    let finalData = null;
+    await consumeNdjsonResponse(res, (ev) => {
+      if (ev.stage === "progress") {
+        setQuickProgress(
+          ev.label || "处理中…",
+          ev.pct,
+          ev.execution_steps,
+          ev.official_files_read,
+        );
+        if (ev.label) evidenceSubtitle.textContent = ev.label;
+      }
+      if (ev.stage === "done" && ev.data) finalData = ev.data;
+    });
+    if (!finalData) throw new Error("未收到完整回答");
+    showAnswerCard(query, finalData);
   } catch (err) {
     quickLoading.classList.add("hidden");
     answerCard.classList.remove("hidden");
     answerQuestion.textContent = query;
     answerMeta.textContent = "请求失败";
-    const msg = String(err);
+    const msg = err && err.message ? err.message : String(err);
     secConclusion.innerHTML = `<p class="muted">${escapeHtml(msg)}</p>`;
     setSectionContent(secRecommendation, secRecommendationEmpty, "");
     setSectionContent(secRisks, secRisksEmpty, "");
@@ -631,105 +1201,462 @@ async function sendQuery() {
     renderEvidencePanel([]);
     evidenceSubtitle.textContent = "请求失败，无引用。";
   } finally {
-    sendBtn.disabled = false;
-    queryInput.focus();
+    if (sendBtn) sendBtn.disabled = false;
+    queryInput?.focus();
   }
 }
 
-sendBtn.addEventListener("click", sendQuery);
-rebuildBtn.addEventListener("click", rebuildKb);
-queryInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    sendQuery();
+function showExamAnswer(query, data) {
+  if (!examAnswerCard || !examAnswerBody) return;
+  examAnswerQuestion.textContent = query;
+  examAnswerMeta.textContent = `笔试辅导 · ${data.latency_ms ?? "—"}ms`;
+  examAnswerBody.innerHTML = formatAssistantBody(data.answer || "");
+  if (examExecStepsList) {
+    const steps = Array.isArray(data.execution_steps) ? data.execution_steps : [];
+    examExecStepsList.innerHTML = steps.length
+      ? steps.map((s) => `<li>${escapeHtml(String(s))}</li>`).join("")
+      : `<li class="muted small">（未返回步骤信息）</li>`;
   }
-});
+  const refs = Array.isArray(data.references) ? data.references : [];
+  if (refs.length && examReferencesBox && examReferences) {
+    examReferencesBox.classList.remove("hidden");
+    examReferences.innerHTML = refs
+      .map((r) => {
+        const url = r.url || "";
+        const entry = escapeHtml(r.entry || "");
+        const idx = r.index || "";
+        const link = url
+          ? ` <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">[链接]</a>`
+          : "";
+        return `<div class="ref-entry">[${idx}] ${entry}${link}</div>`;
+      })
+      .join("");
+  } else if (examReferencesBox) {
+    examReferencesBox.classList.add("hidden");
+  }
+  examEmpty?.classList.add("hidden");
+  examLoading?.classList.add("hidden");
+  examAnswerCard.classList.remove("hidden");
+  renderEvidencePanel(data.sources || []);
+  if (evidenceSubtitle) evidenceSubtitle.textContent = `笔试辅导共引用 ${data.sources?.length || 0} 条资料，经验库优先。`;
+}
 
-btnLoadTemplate.addEventListener("click", async () => {
-  try {
-    const res = await fetch("/api/long-chat/templates");
-    const data = await res.json();
-    const intake = data.intake || {};
-    if (longGoal.value.trim()) {
-      intake.meta = intake.meta || {};
-      intake.meta.goal = longGoal.value.trim();
-    }
-    longIntakeJson.value = JSON.stringify(intake, null, 2);
-  } catch (e) {
-    longIntakeJson.value = `// 加载模板失败：${e}`;
-  }
-});
+async function sendExamQuery() {
+  const query = examQueryInput ? examQueryInput.value.trim() : "";
+  if (!query) return;
+  if (examSendBtn) examSendBtn.disabled = true;
+  examEmpty?.classList.add("hidden");
+  examAnswerCard?.classList.add("hidden");
+  examLoading?.classList.remove("hidden");
+  resetEvidencePanelPlaceholder();
+  if (evidenceSubtitle) evidenceSubtitle.textContent = "正在检索笔试相关经验…";
 
-btnClarify.addEventListener("click", async () => {
-  const goal = longGoal.value.trim();
-  if (!goal) {
-    clarifyBox.textContent = "请先填写目标描述。";
-    clarifyBox.classList.remove("hidden");
-    return;
-  }
-  btnClarify.disabled = true;
   try {
-    let partial = null;
-    try {
-      partial = JSON.parse(longIntakeJson.value || "{}");
-    } catch {
-      partial = null;
-    }
-    const res = await fetch("/api/long-chat/clarify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ goal, partial_intake: partial }),
-    });
-    const data = await res.json();
-    const qs = (data.questions || []).map((q, i) => `${i + 1}. ${q}`).join("\n");
-    clarifyBox.textContent = qs || "（未返回追问）";
-    clarifyBox.classList.remove("hidden");
-  } catch (e) {
-    clarifyBox.textContent = `追问生成失败：${e}`;
-    clarifyBox.classList.remove("hidden");
-  } finally {
-    btnClarify.disabled = false;
-  }
-});
-
-btnReport.addEventListener("click", async () => {
-  const goal = longGoal.value.trim();
-  if (!goal) {
-    longReportOut.textContent = "请先填写目标描述。";
-    return;
-  }
-  let intake;
-  try {
-    intake = JSON.parse(longIntakeJson.value || "{}");
-  } catch (e) {
-    longReportOut.textContent = `JSON 解析失败：${e}`;
-    return;
-  }
-  intake.meta = intake.meta || {};
-  intake.meta.goal = goal;
-  btnReport.disabled = true;
-  longReportOut.textContent = "生成中…";
-  try {
-    const res = await fetch("/api/long-chat/report", {
+    const res = await apiFetch("/api/exam-tutoring", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        goal,
-        intake,
-        use_web: longUseWeb.checked,
+        query,
+        enable_web_search: examEnableWeb ? examEnableWeb.checked : false,
       }),
     });
-    const data = await res.json();
-    longReportOut.textContent = JSON.stringify(data.report, null, 2);
-    if (data.latency_ms != null) {
-      longReportOut.textContent += `\n\n// latency_ms: ${data.latency_ms}`;
+    const data = await parseJsonResponse(res);
+    if (!res.ok) {
+      const detail = data.detail;
+      throw new Error(typeof detail === "string" ? detail : data.detail || res.statusText);
     }
-  } catch (e) {
-    longReportOut.textContent = `请求失败：${e}`;
+    showExamAnswer(query, data);
+  } catch (err) {
+    examLoading?.classList.add("hidden");
+    examAnswerCard?.classList.remove("hidden");
+    if (examAnswerQuestion) examAnswerQuestion.textContent = query;
+    if (examAnswerMeta) examAnswerMeta.textContent = "请求失败";
+    if (examAnswerBody) examAnswerBody.innerHTML = `<p class="muted">${escapeHtml(String(err.message || err))}</p>`;
+    renderEvidencePanel([]);
   } finally {
-    btnReport.disabled = false;
+    if (examSendBtn) examSendBtn.disabled = false;
+    examQueryInput?.focus();
   }
-});
+}
+
+if (sendBtn) sendBtn.addEventListener("click", sendQuery);
+if (examSendBtn) examSendBtn.addEventListener("click", sendExamQuery);
+if (rebuildBtn) rebuildBtn.addEventListener("click", rebuildKb);
+if (queryInput) {
+  queryInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendQuery();
+    }
+  });
+}
+if (examQueryInput) {
+  examQueryInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendExamQuery();
+    }
+  });
+}
+
+const LONG_PLAN_STREAM_LABELS = {
+  hydrate_long_plan: "初始化…",
+  retrieve_long_plan_kb: "检索知识库…",
+  generate_long_plan_part1: "1/5 目标院校…",
+  generate_long_plan_part2: "2/5 诊断定位…",
+  generate_long_plan_part3: "3/5 时间轴…",
+  generate_long_plan_part4: "4/5 行动指南…",
+  generate_long_plan_part5: "5/5 项目准备…",
+  merge_long_plan: "汇总报告…",
+};
+
+const LONG_PLAN_PROGRESS = {
+  hydrate_long_plan: { pct: 5, label: "初始化表单…" },
+  retrieve_long_plan_kb: { pct: 15, label: "检索知识库与联网…" },
+  generate_long_plan_part1: { pct: 30, label: "1/5 分析目标院校与项目…" },
+  generate_long_plan_part2: { pct: 45, label: "2/5 核心诊断与定位评级…" },
+  generate_long_plan_part3: { pct: 60, label: "3/5 规划关键时间轴…" },
+  generate_long_plan_part4: { pct: 75, label: "4/5 梳理核心行动指南…" },
+  generate_long_plan_part5: { pct: 90, label: "5/5 项目准备建议…" },
+  merge_long_plan: { pct: 100, label: "汇总报告…" },
+};
+
+async function runLongPlanReport() {
+  const payload = collectLongPlanPayload();
+  const missing = missingRequiredLongPlanFields(payload);
+  if (missing.length) {
+    const tip = `请先填写必填项：${missing.join("、")}`;
+    if (longPlanErr) {
+      longPlanErr.textContent = tip;
+      longPlanErr.classList.remove("hidden");
+    } else {
+      window.alert(tip);
+    }
+    return;
+  }
+
+  lastLongPlanPayload = payload;
+  lastLongPlanMarkdown = "";
+  if (lastLongPlanHtmlUrl) {
+    URL.revokeObjectURL(lastLongPlanHtmlUrl);
+    lastLongPlanHtmlUrl = "";
+  }
+  lastDocs = [];
+  lastLongPlanRefs = [];
+
+  if (longPlanErr) {
+    longPlanErr.textContent = "";
+    longPlanErr.classList.add("hidden");
+  }
+  const triggerBtn = document.getElementById("btnReport");
+  const htmlBtn = document.getElementById("btnReportHtml");
+  const dlBtn = document.getElementById("btnDownloadHtml");
+  if (triggerBtn) triggerBtn.disabled = true;
+  if (htmlBtn) htmlBtn.disabled = true;
+  if (dlBtn) dlBtn.disabled = true;
+
+  // Show progress bar, hide placeholder and preview
+  if (longPlanProgress) longPlanProgress.style.display = "block";
+  if (progressBarFill) progressBarFill.style.width = "0%";
+  if (progressStepLabel) progressStepLabel.textContent = "初始化…";
+  if (longReportPlaceholder) longReportPlaceholder.classList.add("hidden");
+  if (longReportPreview) {
+    longReportPreview.classList.add("hidden");
+    longReportPreview.innerHTML = "";
+  }
+  // Scroll to progress bar
+  if (longPlanProgress) longPlanProgress.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  const t0 = performance.now();
+  try {
+    const res = await apiFetch("/api/long-chat/report/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(errText || res.statusText);
+    }
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error("浏览器不支持流式响应");
+    const decoder = new TextDecoder();
+    let buf = "";
+    let lastMd = "";
+    let lastReport = null;
+    let streamErr = null;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop() ?? "";
+      for (const line of lines) {
+        const s = line.trim();
+        if (!s) continue;
+        let ev;
+        try {
+          ev = JSON.parse(s);
+        } catch {
+          continue;
+        }
+        if (ev.stream_error) streamErr = ev.stream_error;
+        const nodeName = Object.keys(ev)[0];
+        const patch = nodeName ? ev[nodeName] : null;
+        if (LONG_PLAN_STREAM_LABELS[nodeName] && longReportPlaceholder) {
+          longReportPlaceholder.textContent = LONG_PLAN_STREAM_LABELS[nodeName];
+          longReportPlaceholder.classList.remove("hidden");
+        }
+        // Update progress bar
+        if (LONG_PLAN_PROGRESS[nodeName]) {
+          const step = LONG_PLAN_PROGRESS[nodeName];
+          if (progressBarFill) progressBarFill.style.width = step.pct + "%";
+          if (progressStepLabel) progressStepLabel.textContent = step.label;
+        }
+        if (nodeName === "merge_long_plan" && patch) {
+          lastMd = patch.report_markdown || "";
+          lastReport = patch.report ?? null;
+          // Capture evidence for right panel
+          if (patch.retrieved_docs && patch.retrieved_docs.length) {
+            lastDocs = patch.retrieved_docs;
+          }
+          if (patch.references) {
+            lastLongPlanRefs = patch.references;
+          }
+        }
+      }
+    }
+    if (streamErr) throw new Error(streamErr);
+    const latency_ms = Math.round(performance.now() - t0);
+    if (!lastMd && !lastReport) {
+      const res2 = await apiFetch("/api/long-chat/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res2.json();
+      if (!res2.ok) {
+        const detail = data.detail || data;
+        const msg =
+          typeof detail === "object" && detail.errors
+            ? detail.errors.join("；")
+            : JSON.stringify(detail);
+        throw new Error(msg || res2.statusText);
+      }
+      lastMd = data.report_markdown || "";
+      lastReport = data.report;
+      if (data.retrieved_docs && data.retrieved_docs.length) lastDocs = data.retrieved_docs;
+      if (data.references) lastLongPlanRefs = data.references;
+      if (longReportJson) {
+        let txt = JSON.stringify(lastReport, null, 2);
+        if (data.latency_ms != null) txt += `\n\n// latency_ms: ${data.latency_ms}`;
+        if (data.error) txt += `\n\n// error: ${data.error}`;
+        longReportJson.textContent = txt;
+      }
+    } else {
+      if (longReportJson) {
+        let txt = JSON.stringify(lastReport, null, 2);
+        txt += `\n\n// latency_ms (client): ${latency_ms}`;
+        longReportJson.textContent = txt;
+      }
+    }
+    lastLongPlanMarkdown = typeof lastMd === "string" ? lastMd : "";
+    lastLongPlanReport = lastReport && typeof lastReport === "object" ? lastReport : null;
+    if (lastLongPlanMarkdown || lastReport) {
+      await prepareLongPlanHtmlLink(lastLongPlanMarkdown, lastReport);
+    }
+    // Hide progress bar, then show report
+    if (longPlanProgress) {
+      if (progressBarFill) progressBarFill.style.width = "100%";
+      if (progressStepLabel) progressStepLabel.textContent = "生成完成，正在渲染预览…";
+      longPlanProgress.style.display = "none";
+    }
+    if (longReportPreview) {
+      longReportPreview.innerHTML = lastLongPlanHtmlUrl
+        ? `<iframe class="lp-preview-frame" title="规划报告预览" src="${lastLongPlanHtmlUrl}"></iframe>`
+        : formatLongPlanMarkdown(lastLongPlanMarkdown || "");
+      longReportPreview.classList.remove("hidden");
+      longReportPreview.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+    if (longReportPlaceholder) longReportPlaceholder.classList.add("hidden");
+    // Render evidence panel for long plan
+    if (lastDocs && lastDocs.length) {
+      renderEvidencePanel(lastDocs);
+      if (evidenceSubtitle)
+        evidenceSubtitle.textContent = `长程规划共引用 ${lastDocs.length} 条资料，已按类型分组。`;
+    }
+    if (htmlBtn) htmlBtn.disabled = !lastLongPlanHtmlUrl;
+    if (dlBtn) dlBtn.disabled = !(lastLongPlanHtmlUrl || lastLongPlanMarkdown || lastLongPlanReport);
+  } catch (e) {
+    if (longPlanProgress) longPlanProgress.style.display = "none";
+    if (longPlanErr) {
+      longPlanErr.textContent = String(e.message || e);
+      longPlanErr.classList.remove("hidden");
+    }
+    if (longReportPlaceholder) {
+      longReportPlaceholder.classList.remove("hidden");
+      longReportPlaceholder.textContent = "生成失败，请检查必填项与后端配置。";
+    }
+    if (longReportJson) longReportJson.textContent = String(e);
+  } finally {
+    const b = document.getElementById("btnReport");
+    if (b) b.disabled = false;
+    const hb = document.getElementById("btnReportHtml");
+    if (hb) hb.disabled = !lastLongPlanHtmlUrl;
+    const db = document.getElementById("btnDownloadHtml");
+    if (db) db.disabled = !(lastLongPlanHtmlUrl || lastLongPlanMarkdown || lastLongPlanReport);
+  }
+}
+
+function longPlanHtmlFilename() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `ruc-baoyan-plan-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.html`;
+}
+
+async function downloadLongPlanHtmlReport() {
+  if (!lastLongPlanMarkdown && !lastLongPlanReport && !lastLongPlanHtmlUrl) {
+    window.alert("请先生成规划报告后再下载 HTML。");
+    return;
+  }
+  const dlBtn = document.getElementById("btnDownloadHtml");
+  if (dlBtn) dlBtn.disabled = true;
+  try {
+    const body = lastLongPlanReport && typeof lastLongPlanReport === "object"
+      ? {
+          report: lastLongPlanReport,
+          report_markdown: lastLongPlanMarkdown || "",
+          references: lastLongPlanRefs || [],
+          download: true,
+        }
+      : { report_markdown: lastLongPlanMarkdown || "", download: true };
+    const res = await apiFetch("/api/long-chat/report/html", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(errText || res.statusText);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = longPlanHtmlFilename();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    if (longPlanErr) {
+      longPlanErr.textContent = `HTML 下载失败：${e.message || e}`;
+      longPlanErr.classList.remove("hidden");
+    } else {
+      window.alert(`HTML 下载失败：${e.message || e}`);
+    }
+  } finally {
+    if (dlBtn) dlBtn.disabled = !(lastLongPlanHtmlUrl || lastLongPlanMarkdown || lastLongPlanReport);
+  }
+}
+
+async function prepareLongPlanHtmlLink(markdown, report = null) {
+  const body = report && typeof report === "object"
+    ? { report, report_markdown: markdown || "", references: lastLongPlanRefs || [] }
+    : { report_markdown: markdown || "" };
+  const res = await apiFetch("/api/long-chat/report/html", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(errText || res.statusText);
+  }
+  const blob = await res.blob();
+  if (lastLongPlanHtmlUrl) URL.revokeObjectURL(lastLongPlanHtmlUrl);
+  lastLongPlanHtmlUrl = URL.createObjectURL(blob);
+}
+
+async function openLongPlanHtmlReport() {
+  const mdCached =
+    typeof lastLongPlanMarkdown === "string" ? lastLongPlanMarkdown.trim() : "";
+
+  const payload = collectLongPlanPayload();
+  const missing = missingRequiredLongPlanFields(payload);
+
+  if (!mdCached && missing.length) {
+    const tip = `请先填写必填项并生成报告后再打开 HTML 报告：${missing.join("、")}`;
+    if (longPlanErr) {
+      longPlanErr.textContent = tip;
+      longPlanErr.classList.remove("hidden");
+    } else {
+      window.alert(tip);
+    }
+    return;
+  }
+
+  lastLongPlanPayload = payload;
+
+  const htmlBtn = document.getElementById("btnReportHtml");
+  const genBtn = document.getElementById("btnReport");
+  if (htmlBtn) htmlBtn.disabled = true;
+  if (genBtn) genBtn.disabled = true;
+  if (longPlanErr) {
+    longPlanErr.textContent = "";
+    longPlanErr.classList.add("hidden");
+  }
+  try {
+    if (!lastLongPlanHtmlUrl) {
+      if (mdCached || lastLongPlanReport) await prepareLongPlanHtmlLink(mdCached, lastLongPlanReport);
+      else {
+        const res = await apiFetch("/api/long-chat/report/html", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(errText || res.statusText);
+        }
+        const blob = await res.blob();
+        lastLongPlanHtmlUrl = URL.createObjectURL(blob);
+      }
+    }
+    window.open(lastLongPlanHtmlUrl, "_blank", "noopener,noreferrer");
+  } catch (e) {
+    if (longPlanErr) {
+      longPlanErr.textContent = `HTML 报告生成失败：${e.message || e}`;
+      longPlanErr.classList.remove("hidden");
+    }
+  } finally {
+    if (htmlBtn) htmlBtn.disabled = !lastLongPlanHtmlUrl;
+    const dlBtn = document.getElementById("btnDownloadHtml");
+    if (dlBtn) dlBtn.disabled = !lastLongPlanHtmlUrl;
+    if (genBtn) genBtn.disabled = false;
+  }
+}
+
+(function wireLongPlanPanel() {
+  const root = document.getElementById("viewLong");
+  if (!root) return;
+  /** 点击按钮标签文字时 target 多为 Text 节点，需归一到 Element 再 closest。 */
+  function eventTargetElement(ev) {
+    const n = ev.target;
+    if (n instanceof Element) return n;
+    const p = n?.parentElement;
+    return p instanceof Element ? p : null;
+  }
+  root.addEventListener("click", (e) => {
+    const start = eventTargetElement(e);
+    if (!start) return;
+    const btn = start.closest("#btnReport, #btnReportHtml, #btnDownloadHtml");
+    if (!btn || !root.contains(btn)) return;
+    e.preventDefault();
+    if (btn.id === "btnReport") void runLongPlanReport();
+    else if (btn.id === "btnReportHtml") void openLongPlanHtmlReport();
+    else void downloadLongPlanHtmlReport();
+  });
+})();
 
 wireScopeSegment(kbScopeSeg, (s) => {
   kbScope = s;
@@ -742,7 +1669,7 @@ if (kbDebugLoadSnap && kbDebugSnapOut) {
   kbDebugLoadSnap.addEventListener("click", async () => {
     kbDebugSnapOut.textContent = "加载中…";
     try {
-      const res = await fetch("/api/kb/debug");
+      const res = await apiFetch("/api/kb/debug");
       const raw = await res.text();
       if (!res.ok) {
         kbDebugSnapOut.textContent = `HTTP ${res.status}（404 时需 ENABLE_KB_ADMIN=true）\n${raw}`;
@@ -763,7 +1690,7 @@ if (xhsVerifyRun && xhsVerifyOut) {
     const checkRow = rowRaw != null && !Number.isNaN(rowRaw) ? rowRaw : null;
     xhsVerifyOut.textContent = "运行中…";
     try {
-      const res = await fetch("/api/kb/xiaohongshu/verify", {
+      const res = await apiFetch("/api/kb/xiaohongshu/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -789,7 +1716,7 @@ if (officialVerifyRun && officialVerifyOut) {
   officialVerifyRun.addEventListener("click", async () => {
     officialVerifyOut.textContent = "运行中…";
     try {
-      const res = await fetch("/api/kb/official/verify", {
+      const res = await apiFetch("/api/kb/official/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sample_chunks_per_pdf: 3, top_k_per_question: 5 }),
@@ -815,7 +1742,7 @@ if (waTestRun && waTestOut) {
     }
     waTestOut.textContent = "运行中…";
     try {
-      const res = await fetch("/api/web-access/test", {
+      const res = await apiFetch("/api/web-access/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -845,7 +1772,7 @@ if (kbDebugRunTrace && kbDebugTraceOut && kbDebugQuery) {
     }
     kbDebugTraceOut.textContent = "运行中…";
     try {
-      let res = await fetch("/api/kb/debug/trace", {
+      let res = await apiFetch("/api/kb/debug/trace", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -855,7 +1782,7 @@ if (kbDebugRunTrace && kbDebugTraceOut && kbDebugQuery) {
         }),
       });
       if (res.status === 404) {
-        res = await fetch("/api/kb/retrieve-preview", {
+        res = await apiFetch("/api/kb/retrieve-preview", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -877,6 +1804,74 @@ if (kbDebugRunTrace && kbDebugTraceOut && kbDebugQuery) {
   });
 }
 
-renderFaqChips();
-fetchKbStatus();
-setActiveView("quick");
+if (btnLogout) {
+  btnLogout.addEventListener("click", async () => {
+    try {
+      await apiFetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      /* ignore */
+    }
+    clearAuthSession();
+    window.location.href = "/";
+  });
+}
+
+if (btnSaveProfile) {
+  btnSaveProfile.addEventListener("click", async () => {
+    if (profileSaveMsg) {
+      profileSaveMsg.classList.remove("ok");
+      profileSaveMsg.classList.add("hidden");
+    }
+    try {
+      await saveUserProfile();
+    } catch (e) {
+      if (profileSaveMsg) {
+        profileSaveMsg.textContent = e.message || String(e);
+        profileSaveMsg.classList.remove("hidden", "ok");
+      }
+    }
+  });
+}
+
+if (btnApplyProfileToLong) {
+  btnApplyProfileToLong.addEventListener("click", async () => {
+    try {
+      const profile = await loadUserProfile();
+      applyProfileToLongPlanForm(profile);
+      setActiveView("long");
+      if (profileSaveMsg) {
+        profileSaveMsg.textContent = "已同步到长程规划表单";
+        profileSaveMsg.classList.remove("hidden");
+        profileSaveMsg.classList.add("ok");
+      }
+    } catch (e) {
+      if (profileSaveMsg) {
+        profileSaveMsg.textContent = e.message || String(e);
+        profileSaveMsg.classList.remove("hidden", "ok");
+      }
+    }
+  });
+}
+
+ensureAuthenticated().then((ok) => {
+  if (!ok) return;
+  renderFaqChips();
+  renderExamFaqChips();
+  setActiveView("quick");
+});
+
+// Wire quick Q&A PDF download button
+if (btnAnswerPdf) {
+  btnAnswerPdf.addEventListener("click", downloadAnswerPdf);
+}
+
+// Evidence panel disclaimer
+(function addEvidenceDisclaimer() {
+  const panel = document.querySelector(".evidence-panel");
+  if (!panel) return;
+  const disc = document.createElement("div");
+  disc.className = "evidence-disclaimer";
+  disc.innerHTML =
+    '注：带有网络溯源的内容提取自过往经验分享，仅供参考。最新招生要求请以人大陆续发布的官方文件为准。';
+  panel.appendChild(disc);
+})();

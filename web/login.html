@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>登录 · 中国人民大学保研工作台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/web/style.css?v=auth-1" />
+</head>
+<body class="auth-body">
+  <div class="auth-shell">
+    <div class="auth-brand">
+      <img class="brand-mark" src="/web/assets/ruc-logo.svg" alt="中国人民大学校徽" />
+      <div>
+        <h1 class="auth-title">保研工作台</h1>
+        <p class="muted small">中国人民大学 · 登录后使用问答、规划与辅导功能</p>
+      </div>
+    </div>
+
+    <div class="auth-card card card-elevated">
+      <div class="auth-tabs" role="tablist">
+        <button type="button" class="auth-tab active" data-auth-tab="login" id="tabLogin">登录</button>
+        <button type="button" class="auth-tab" data-auth-tab="register" id="tabRegister">注册</button>
+      </div>
+
+      <form id="loginForm" class="auth-form" autocomplete="on">
+        <label class="auth-field">
+          <span class="auth-label">账户名</span>
+          <input type="text" class="input" id="loginUsername" name="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9_]{3,32}" placeholder="3–32 位字母、数字或下划线" />
+        </label>
+        <label class="auth-field">
+          <span class="auth-label">密码</span>
+          <input type="password" class="input" id="loginPassword" name="password" required minlength="6" placeholder="至少 6 位" />
+        </label>
+        <p id="loginErr" class="auth-err hidden" role="alert"></p>
+        <button type="submit" class="btn btn-primary auth-submit">登录</button>
+      </form>
+
+      <form id="registerForm" class="auth-form hidden" autocomplete="on">
+        <label class="auth-field">
+          <span class="auth-label">账户名</span>
+          <input type="text" class="input" id="regUsername" name="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9_]{3,32}" placeholder="3–32 位字母、数字或下划线" />
+        </label>
+        <label class="auth-field">
+          <span class="auth-label">密码</span>
+          <input type="password" class="input" id="regPassword" name="password" required minlength="6" placeholder="至少 6 位" />
+        </label>
+        <label class="auth-field">
+          <span class="auth-label">确认密码</span>
+          <input type="password" class="input" id="regPassword2" required minlength="6" placeholder="再次输入密码" />
+        </label>
+        <p id="registerErr" class="auth-err hidden" role="alert"></p>
+        <button type="submit" class="btn btn-primary auth-submit">注册并登录</button>
+      </form>
+    </div>
+
+    <p class="auth-foot muted small">注册即表示您理解本平台回答仅供学习规划参考，最终以学院与研招网通知为准。</p>
+  </div>
+
+  <script src="/web/session.js?v=auth-1"></script>
+  <script src="/web/auth.js?v=auth-1"></script>
+</body>
+</html>

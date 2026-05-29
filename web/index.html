@@ -3,20 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>人大财政金融 · 保研工作台</title>
+  <title>中国人民大学 · 保研工作台</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/web/style.css" />
+  <link rel="stylesheet" href="/web/style.css?v=20260519-longplan-final-1" />
 </head>
 <body>
   <div class="app">
     <aside class="sidebar" aria-label="主导航">
       <div class="sidebar-brand">
-        <div class="brand-mark" aria-hidden="true">RUC</div>
+        <img class="brand-mark" src="/web/assets/ruc-logo.svg" alt="中国人民大学校徽" />
         <div class="brand-text">
           <span class="brand-title">保研工作台</span>
-          <span class="brand-sub">中国人民大学财政金融学院 · 证据优先</span>
+          <span class="brand-sub">中国人民大学</span>
         </div>
       </div>
 
@@ -29,27 +29,25 @@
           <span class="nav-icon" aria-hidden="true">◎</span>
           <span class="nav-label">长程规划</span>
         </button>
-        <button type="button" class="nav-item" data-view="kb" id="navKb">
-          <span class="nav-icon" aria-hidden="true">▤</span>
-          <span class="nav-label">知识库管理</span>
-        </button>
-        <button type="button" class="nav-item" data-view="kbdebug" id="navKbDebug">
-          <span class="nav-icon" aria-hidden="true">⌗</span>
-          <span class="nav-label">KB 调试</span>
-        </button>
-        <button type="button" class="nav-item" data-view="official" id="navOfficial">
-          <span class="nav-icon" aria-hidden="true">▭</span>
-          <span class="nav-label">官方文件</span>
-        </button>
-        <button type="button" class="nav-item" data-view="experience" id="navExperience">
+        <button type="button" class="nav-item" data-view="exam" id="navExam">
           <span class="nav-icon" aria-hidden="true">✎</span>
-          <span class="nav-label">经验库</span>
+          <span class="nav-label">笔试辅导</span>
         </button>
-        <button type="button" class="nav-item" data-view="settings" id="navSettings">
-          <span class="nav-icon" aria-hidden="true">⋯</span>
-          <span class="nav-label">设置</span>
+        <button type="button" class="nav-item" data-view="interview" id="navInterview">
+          <span class="nav-icon" aria-hidden="true">◉</span>
+          <span class="nav-label">面试辅导</span>
+        </button>
+        <button type="button" class="nav-item" data-view="profile" id="navProfile">
+          <span class="nav-icon" aria-hidden="true">☺</span>
+          <span class="nav-label">个人信息</span>
         </button>
       </nav>
+
+      <div class="sidebar-user card pad-sm" id="sidebarUser">
+        <p class="eyebrow">当前账户</p>
+        <p class="sidebar-user-name" id="sidebarUserName">—</p>
+        <button type="button" class="btn btn-ghost btn-sm" id="btnLogout">退出登录</button>
+      </div>
 
       <div class="sidebar-foot muted small">
         回答仅供学习规划参考，最终以学院与研招网最新通知为准。
@@ -63,8 +61,8 @@
           <p class="workspace-tag">工作台 · 问答与证据对齐</p>
           <h1 class="page-title">快问快答</h1>
           <p class="page-desc">
-            双源知识库：<strong class="text-foreground">学院正式 PDF</strong>（规则）与
-            <strong class="text-foreground">小红书笔记表</strong>（经验）分组建索引；回答按「官方结论 / 经验补充 / 不确定性」分层，右侧可逐条检视可信度与推广风险。
+            双源知识库：<strong class="text-foreground">官方招生简章（TXT/PDF）</strong>（规则）与
+            <strong class="text-foreground">公众信息库（小红书 Excel + 手工统计）</strong>（经验）分组建索引；官方问题会更严谨，咨询类问题会更亲切、更可执行。
           </p>
         </div>
 
@@ -74,17 +72,17 @@
             id="queryInput"
             class="input input-lg"
             rows="3"
-            placeholder="例如：人大金融专硕保研一般考察哪些方面？请以官网与可靠经验交叉核对。"
+            placeholder="例如：中国人民大学财政金融学院金融专硕保研一般考察哪些方面？请以官网与可靠经验交叉核对。"
           ></textarea>
           <div class="scope-panel" role="group" aria-label="知识库检索范围">
             <span class="scope-label muted small">检索范围（KB）</span>
             <div class="scope-segment" id="kbScopeSeg">
-              <button type="button" class="scope-btn active" data-kb-scope="hybrid">混合（正式优先）</button>
-              <button type="button" class="scope-btn" data-kb-scope="official_only">仅正式 PDF</button>
-              <button type="button" class="scope-btn" data-kb-scope="xiaohongshu_only">仅小红书表</button>
+              <button type="button" class="scope-btn active" data-kb-scope="hybrid">混合检索：官方文件优先</button>
+              <button type="button" class="scope-btn" data-kb-scope="official_only">仅官方文件</button>
+              <button type="button" class="scope-btn" data-kb-scope="public_only">仅公众信息</button>
             </div>
             <p class="scope-hint muted small">
-              规则/资格/材料类问题默认加大正式 PDF 权重；经验帖不会覆盖 PDF 结论。
+              平台默认执行官方+公众+联网三路检索以提高完整性；规则/资格/材料类问题仍以正式文件为准。
             </p>
           </div>
           <div class="search-panel-row">
@@ -113,7 +111,16 @@
           <div class="skeleton skeleton-line w-40"></div>
           <div class="skeleton skeleton-line"></div>
           <div class="skeleton skeleton-line w-80"></div>
-          <p class="loading-caption muted small">正在路由、检索并生成回答…</p>
+          <p class="loading-caption muted small" id="quickProgressCaption">正在初始化…</p>
+          <div class="quick-progress-bar-track" aria-hidden="true">
+            <div id="quickProgressFill" class="quick-progress-bar-fill" style="width:0%"></div>
+          </div>
+          <div class="exec-steps muted small" id="execStepsLoading">
+            <p class="exec-steps-title">执行进度</p>
+            <ol class="exec-steps-list" id="quickProgressSteps">
+              <li>等待开始…</li>
+            </ol>
+          </div>
         </div>
 
         <article id="answerCard" class="answer-card card card-elevated hidden" aria-live="polite">
@@ -125,6 +132,15 @@
             <div class="answer-meta muted small" id="answerMeta"></div>
           </header>
 
+          <div class="exec-steps" id="execStepsBox">
+            <div class="exec-steps-head">
+              <span class="badge badge-neutral">执行步骤</span>
+              <span class="muted small" id="execStepsHint">（本次请求的分析与检索流程）</span>
+            </div>
+            <ol class="exec-steps-list" id="execStepsList"></ol>
+            <div class="exec-files muted small" id="execFilesBox"></div>
+          </div>
+
           <div class="disclosure-strip">
             <span class="badge badge-model">模型生成</span>
             <span class="muted small">正文为语言模型基于下方证据组织，不等同于官方结论。</span>
@@ -132,15 +148,15 @@
 
           <div class="answer-sections">
             <section class="answer-section answer-section-official">
-              <h2 class="section-title">官方结论</h2>
-              <p class="section-hint muted small">基于学院正式文件等最高优先级证据；不等同于招生办口头答复。</p>
+              <h2 class="section-title">总结回答</h2>
+              <p class="section-hint muted small">结合本次检索到的官方文件原文与公众信息，给出可执行的答复要点。</p>
               <div id="secConclusion" class="section-body prose"></div>
             </section>
             <section class="answer-section">
-              <h2 class="section-title">经验参考</h2>
-              <p class="section-hint muted small">学长学姐主观经验，可能过时；若与官方结论冲突以官方为准。</p>
+              <h2 class="section-title">检索过程</h2>
+              <p class="section-hint muted small">展示本次 AI 读取的官方文件名及检索命中概览。</p>
               <div id="secRecommendation" class="section-body prose"></div>
-              <p id="secRecommendationEmpty" class="section-empty muted small hidden">模型未单独输出「经验参考」或已与官方结论合并，请展开完整原文。</p>
+              <p id="secRecommendationEmpty" class="section-empty muted small hidden">未返回检索过程文本；可查看顶部「执行步骤」与「已读文件」。</p>
             </section>
             <section class="answer-section answer-section-warn">
               <h2 class="section-title">不确定性 / 冲突说明</h2>
@@ -148,12 +164,12 @@
               <div id="secRisks" class="section-body prose"></div>
               <p id="secRisksEmpty" class="section-empty muted small hidden">未列出额外不确定性；仍请以最新通知为准。</p>
             </section>
-            <section class="answer-section">
-              <h2 class="section-title">下一步行动</h2>
-              <div id="secNext" class="section-body prose"></div>
-              <p id="secNextEmpty" class="section-empty muted small hidden">可将上方要点转化为个人待办；也可在「长程规划」中生成结构化方案。</p>
-            </section>
           </div>
+
+          <section class="answer-section answer-section-refs hidden" id="secReferencesBox">
+            <h2 class="section-title">参考文献</h2>
+            <div id="secReferences" class="section-body prose"></div>
+          </section>
 
           <details class="answer-raw">
             <summary>查看完整原文（含未拆分段落）</summary>
@@ -162,180 +178,333 @@
         </article>
       </section>
 
+      <!-- Exam tutoring -->
+      <section class="view view-exam hidden" id="viewExam" data-view-panel="exam">
+        <div class="main-header">
+          <p class="workspace-tag">笔试辅导 · 经验库优先</p>
+          <h1 class="page-title">笔试辅导</h1>
+          <p class="page-desc">
+            主要从小红书经验笔记中检索目标项目的笔试科目、题型、复习重点和准备方式；官方文件只用于提醒口径边界。
+          </p>
+        </div>
+
+        <div class="search-panel card card-elevated">
+          <label class="sr-only" for="examQueryInput">笔试问题</label>
+          <textarea
+            id="examQueryInput"
+            class="input input-lg"
+            rows="3"
+            placeholder="例如：中国人民大学财政金融学院金融专硕保研笔试考什么？题型和复习重点有哪些？"
+          ></textarea>
+          <div class="search-panel-row">
+            <label class="toggle">
+              <input type="checkbox" id="examEnableWeb" />
+              <span>必要时补充联网经验线索</span>
+            </label>
+            <div class="search-panel-actions">
+              <span class="hint muted small">优先检索经验库</span>
+              <button type="button" id="examSendBtn" class="btn btn-primary">生成辅导建议</button>
+            </div>
+          </div>
+          <div class="faq-block">
+            <span class="muted small">示例问题</span>
+            <div id="examFaqChips" class="chips"></div>
+          </div>
+        </div>
+
+        <div id="examEmpty" class="empty-state card">
+          <div class="empty-icon" aria-hidden="true">✎</div>
+          <h2 class="empty-title">尚未生成辅导建议</h2>
+          <p class="empty-text muted">输入目标学院或项目后，系统会从经验库里找笔试相关信息。</p>
+        </div>
+
+        <div id="examLoading" class="loading-state card hidden" role="status" aria-live="polite">
+          <div class="skeleton skeleton-line w-40"></div>
+          <div class="skeleton skeleton-line"></div>
+          <div class="skeleton skeleton-line w-80"></div>
+          <p class="loading-caption muted small">正在检索经验库并整理笔试建议…</p>
+        </div>
+
+        <article id="examAnswerCard" class="answer-card card card-elevated hidden" aria-live="polite">
+          <header class="answer-card-head">
+            <div>
+              <p class="eyebrow">本次问题</p>
+              <p id="examAnswerQuestion" class="answer-question"></p>
+            </div>
+            <div class="answer-meta muted small" id="examAnswerMeta"></div>
+          </header>
+          <div class="disclosure-strip">
+            <span class="badge badge-exp">经验库优先</span>
+            <span class="muted small">经验内容可能因年份、项目和个人背景不同而变化，请以学院最新通知为准。</span>
+          </div>
+          <div class="exec-steps">
+            <div class="exec-steps-head">
+              <strong>本次检索过程</strong>
+              <span class="muted small">用于确认是否联网、是否读取经验库和官方文件。</span>
+            </div>
+            <ol class="exec-steps-list" id="examExecStepsList"></ol>
+          </div>
+          <section class="answer-section answer-section-official">
+            <h2 class="section-title">笔试辅导建议</h2>
+            <div id="examAnswerBody" class="section-body prose"></div>
+          </section>
+          <section class="answer-section answer-section-refs hidden" id="examReferencesBox">
+            <h2 class="section-title">参考文献</h2>
+            <div id="examReferences" class="section-body prose"></div>
+          </section>
+        </article>
+      </section>
+
+      <!-- Interview tutoring -->
+      <section class="view view-interview hidden" id="viewInterview" data-view-panel="interview">
+        <div class="main-header">
+          <p class="workspace-tag">面试辅导 · 豆包模拟</p>
+          <h1 class="page-title">面试辅导</h1>
+          <p class="page-desc">
+            选择一种模拟方式，复制开头话术后跳转豆包。建议先把简历、目标学院、目标项目和已准备材料发给豆包，再粘贴话术开始一问一答模拟。
+          </p>
+        </div>
+
+        <div class="interview-grid">
+          <article class="card card-elevated interview-card">
+            <h2 class="h3">行为面试模拟</h2>
+            <p class="muted small">围绕个人背景、简历经历、项目匹配度、职业规划和团队协作追问。</p>
+            <textarea id="interviewPromptBehavior" class="input interview-prompt" readonly rows="10">豆包，现在请你根据我刚刚提供的简历，以及我要面试的保研夏令营项目，开始模拟行为面试。请你严格按照真实夏令营面试的形式进行，一个问题一个问题地问，不要一次性给出所有问题，也不要提前给我答案。
+
+本轮行为面试请重点围绕我的个人背景、简历经历、科研/实习/学生工作/竞赛经历、自我介绍、personal statement、职业规划、why me、why this program、项目匹配度、团队合作、领导力、责任感、抗压经历和个人成长进行提问。请结合不同项目的风格差异调整问题，例如偏“好学生导向”的项目要更关注成绩、科研、学术潜力和校园经历，偏“好员工导向”的项目要更关注实习、职业规划、行业认知、沟通表达和执行力。
+
+面试过程中，请你扮演真实面试官，根据我的回答继续追问，尤其要深挖我简历中最有代表性的经历、最能体现项目匹配度的经历，以及可能存在薄弱点的地方。现在开始行为面试，请先问我第一个问题。</textarea>
+            <div class="row-actions">
+              <button type="button" class="btn btn-secondary" data-copy-target="interviewPromptBehavior">复制话术</button>
+              <a class="btn btn-primary" href="https://www.doubao.com/chat" target="_blank" rel="noopener noreferrer">打开豆包</a>
+            </div>
+          </article>
+
+          <article class="card card-elevated interview-card">
+            <h2 class="h3">专业技术面试模拟</h2>
+            <p class="muted small">围绕目标项目常见专业基础、应用分析和真实夏令营题型追问。</p>
+            <textarea id="interviewPromptTechnical" class="input interview-prompt" readonly rows="10">豆包，现在请你根据我刚刚提供的简历，以及我要面试的保研夏令营项目，开始模拟专业技术面试。请你严格按照真实夏令营面试的形式进行，一个问题一个问题地问，不要一次性给出所有问题，也不要提前给我答案。
+
+本轮专业技术面试请重点围绕目标项目可能考察的专业基础和综合应用能力提问。请结合项目方向设置问题，例如金融、经管、保险、税务、金融科技、国金、汇丰、光华、人大财金等项目，重点覆盖公司财务、投资学、货币银行学、商业银行、金融衍生品、国际金融、计量经济学、微积分、概率论、线性代数等内容。也可以结合真实夏令营常见题型进行提问，例如MM定理及其假设、APT假设、BS公式定价逻辑、一级市场和二级市场区别、募投管退、银行股为什么用PB估值、A股市场PE/PB、公开市场股价为什么会影响公司、转移定价、贸易战与关税、区块链发展、金融科技应用等。
+
+面试过程中，请你扮演真实面试官，根据我的回答继续追问，不仅考察我是否会背概念，更要考察我能否解释原理、理解假设、联系现实案例，并进行有逻辑的分析。现在开始专业技术面试，请先问我第一个问题。</textarea>
+            <div class="row-actions">
+              <button type="button" class="btn btn-secondary" data-copy-target="interviewPromptTechnical">复制话术</button>
+              <a class="btn btn-primary" href="https://www.doubao.com/chat" target="_blank" rel="noopener noreferrer">打开豆包</a>
+            </div>
+          </article>
+
+          <article class="card card-elevated interview-card">
+            <h2 class="h3">压力面试模拟</h2>
+            <p class="muted small">模拟更严格的追问，训练临场反应、逻辑稳定性和表达分寸。</p>
+            <textarea id="interviewPromptStress" class="input interview-prompt" readonly rows="10">豆包，现在请你根据我刚刚提供的简历，以及我要面试的保研夏令营项目，开始模拟压力面试。请你严格按照真实夏令营面试的形式进行，一个问题一个问题地问，不要一次性给出所有问题，也不要提前给我答案。
+
+本轮压力面试请适当提高提问强度，重点考察我的临场反应、逻辑稳定性、表达韧性、自我认知、抗压能力和项目匹配度。请围绕我的简历薄弱点、经历真实性、项目选择动机、职业规划一致性、专业基础短板、与其他候选人的比较优势等方面进行挑战式提问。例如可以追问：为什么你认为自己比其他候选人更适合？你的科研/实习经历是否足够支撑申请这个项目？你同时申请多个项目是否说明目标不坚定？如果你的数学或专业课基础不如其他候选人怎么办？如果我们认为你的经历和项目方向并不匹配，你如何回应？
+
+面试过程中，请你扮演较为严格的面试官，可以进行连续追问和反问，但不要进行人身攻击或无意义否定。请重点模拟真实夏令营中有压力但仍然专业的面试氛围。等我全部回答结束后，再统一复盘我的表现，包括回答逻辑、抗压状态、表达分寸、风险点和改进建议。现在开始压力面试，请先问我第一个问题。</textarea>
+            <div class="row-actions">
+              <button type="button" class="btn btn-secondary" data-copy-target="interviewPromptStress">复制话术</button>
+              <a class="btn btn-primary" href="https://www.doubao.com/chat" target="_blank" rel="noopener noreferrer">打开豆包</a>
+            </div>
+          </article>
+        </div>
+      </section>
+
       <!-- Long-form -->
       <section class="view view-long hidden" id="viewLong" data-view-panel="long">
         <div class="main-header">
           <h1 class="page-title">长程规划</h1>
-          <p class="page-desc">分步收集信息并生成 JSON 方案报告；适合时间线与材料清单。</p>
-        </div>
-
-        <div class="stack gap-lg">
-          <div class="card card-elevated pad-lg">
-            <h2 class="h3">1. 描述目标</h2>
-            <textarea id="longGoal" class="input" rows="2" placeholder="例如：希望保研人大经济类学硕，制定从现在到夏令营的时间线。"></textarea>
-            <div class="row-actions">
-              <button type="button" id="btnClarify" class="btn btn-secondary">生成追问</button>
-              <button type="button" id="btnLoadTemplate" class="btn btn-outline">填入信息模板（JSON）</button>
-            </div>
-            <div id="clarifyBox" class="clarify-box muted hidden"></div>
-          </div>
-          <div class="card card-elevated pad-lg">
-            <h2 class="h3">2. 填写信息（JSON）</h2>
-            <p class="muted small">将追问答案整理进模板；可直接编辑 JSON。</p>
-            <textarea id="longIntakeJson" class="input input-mono" rows="14" spellcheck="false"></textarea>
-            <label class="toggle">
-              <input type="checkbox" id="longUseWeb" checked />
-              <span>生成方案时附带联网摘要（与快问快答相同策略）</span>
-            </label>
-            <button type="button" id="btnReport" class="btn btn-primary">生成方案报告</button>
-          </div>
-          <div class="card card-elevated pad-lg">
-            <h2 class="h3">3. 报告输出</h2>
-            <pre id="longReportOut" class="report-pre">（尚未生成）</pre>
-          </div>
-        </div>
-      </section>
-
-      <!-- Knowledge base -->
-      <section class="view hidden" id="viewKb" data-view-panel="kb">
-        <div class="main-header">
-          <p class="workspace-tag">知识库 · 分组建索引</p>
-          <h1 class="page-title">知识库管理</h1>
-          <p class="page-desc">正式 PDF 与小红书 Excel 分开加载；重建后指纹与分块统计会更新。</p>
-        </div>
-        <div class="card card-elevated pad-lg stack gap-md">
-          <div class="kb-meta-row">
-            <span id="kbBadge" class="badge badge-neutral">知识库：读取中…</span>
-            <span id="kbInfo" class="muted small"></span>
-          </div>
-          <div id="kbGroupCards" class="kb-group-grid"></div>
-          <button type="button" id="rebuildBtn" class="btn btn-secondary">重建索引</button>
-          <p class="muted small">清单与解析样例见「KB 调试」页（需后端开启 ENABLE_KB_ADMIN）。</p>
-        </div>
-      </section>
-
-      <section class="view hidden" id="viewKbDebug" data-view-panel="kbdebug">
-        <div class="main-header">
-          <p class="workspace-tag">调试 · 可观测性</p>
-          <h1 class="page-title">KB 调试</h1>
           <p class="page-desc">
-            查看已加载文件、分块/行数、解析样例与一次检索全链路（命中 → 合并 → 传入模型的顺序）。若接口返回 404，请在环境变量中开启
-            <code class="code">ENABLE_KB_ADMIN=true</code>。
+            一次性填写保研画像（硬指标与选填经历），生成五段式规划报告；完成后可打开正式 HTML 报告页面。
           </p>
         </div>
+
         <div class="stack gap-lg">
-          <div class="card card-elevated pad-lg stack gap-md">
-            <h2 class="h3">快照</h2>
-            <button type="button" id="kbDebugLoadSnap" class="btn btn-secondary">加载 /api/kb/debug</button>
-            <pre id="kbDebugSnapOut" class="kb-debug-pre">（尚未加载）</pre>
-          </div>
-          <div class="card card-elevated pad-lg stack gap-md">
-            <h2 class="h3">检索追踪</h2>
-            <label class="sr-only" for="kbDebugQuery">测试查询</label>
-            <textarea id="kbDebugQuery" class="input" rows="2" placeholder="输入测试问题，查看分阶段命中与 docs_passed_to_generation"></textarea>
-            <div class="scope-segment scope-segment-inline" id="kbDebugScopeSeg">
-              <button type="button" class="scope-btn active" data-kb-scope="hybrid">混合</button>
-              <button type="button" class="scope-btn" data-kb-scope="official_only">仅 PDF</button>
-              <button type="button" class="scope-btn" data-kb-scope="xiaohongshu_only">仅表</button>
+          <div class="card card-elevated pad-lg">
+            <h2 class="h3">1. 必填信息</h2>
+            <div class="lp-form-grid">
+              <label class="lp-field"><span class="lp-label">当前就读学校</span>
+                <input type="text" class="input" name="current_school" data-lp-req autocomplete="organization" placeholder="如：中国人民大学" /></label>
+              <label class="lp-field"><span class="lp-label">就读年级</span>
+                <select class="input" name="grade_year" data-lp-req>
+                  <option value="">请选择</option>
+                  <option value="大一">大一</option>
+                  <option value="大二">大二</option>
+                  <option value="大三">大三</option>
+                </select></label>
+              <label class="lp-field lp-span2"><span class="lp-label">就读学院</span>
+                <input type="text" class="input" name="college" data-lp-req placeholder="如：财政金融学院" /></label>
+              <label class="lp-field lp-span2"><span class="lp-label">就读专业</span>
+                <input type="text" class="input" name="major" data-lp-req placeholder="如：金融学" /></label>
+              <label class="lp-field"><span class="lp-label">GPA</span>
+                <input type="text" class="input" name="gpa" data-lp-req placeholder="如：3.72 / 4.0" /></label>
+              <label class="lp-field"><span class="lp-label">专业排名（百分比）</span>
+                <input type="text" class="input" name="major_rank_percentile" data-lp-req placeholder="如前 10%" /></label>
+              <label class="lp-field"><span class="lp-label">目标学校</span>
+                <input type="text" class="input" name="target_school" data-lp-target placeholder="如：中国人民大学" /></label>
+              <label class="lp-field"><span class="lp-label">目标院校</span>
+                <input type="text" class="input" name="target_college" data-lp-target placeholder="如：财政金融学院" /></label>
+              <div class="lp-field lp-span2"><span class="lp-label">目标类型</span>
+                <div class="lp-check-group" role="group" aria-label="目标类型">
+                  <label class="lp-check"><input type="checkbox" name="target_degree_type" value="专硕" data-lp-target-degree />专硕</label>
+                  <label class="lp-check"><input type="checkbox" name="target_degree_type" value="学硕" data-lp-target-degree />学硕</label>
+                  <label class="lp-check"><input type="checkbox" name="target_degree_type" value="直博" data-lp-target-degree />直博</label>
+                </div>
+              </div>
+              <label class="lp-field"><span class="lp-label">雅思（英语成绩至少填一项）</span>
+                <input type="text" class="input" name="english_ielts" data-lp-english placeholder="如：7.0" /></label>
+              <label class="lp-field"><span class="lp-label">托福</span>
+                <input type="text" class="input" name="english_toefl" data-lp-english placeholder="如：105" /></label>
+              <label class="lp-field lp-span2"><span class="lp-label">六级</span>
+                <input type="text" class="input" name="english_cet6" data-lp-english placeholder="如：580" /></label>
             </div>
-            <label class="toggle">
-              <input type="checkbox" id="kbDebugWeb" />
-              <span>附带联网（与快问快答一致策略）</span>
+          </div>
+
+          <div class="card card-elevated pad-lg">
+            <h2 class="h3">2. 选填信息</h2>
+            <div class="lp-form-grid">
+              <label class="lp-field lp-span2"><span class="lp-label">科研与竞赛</span>
+                <textarea class="input" name="research_and_competitions" data-lp-opt rows="2" placeholder="大创、论文、建模、商赛等"></textarea></label>
+              <label class="lp-field lp-span2"><span class="lp-label">实习经历</span>
+                <textarea class="input" name="internships" data-lp-opt rows="2"></textarea></label>
+              <label class="lp-field"><span class="lp-label">保研院校地域偏好</span>
+                <input class="input" name="region_preference" data-lp-opt placeholder="如：京津冀 / 不限" /></label>
+              <label class="lp-field"><span class="lp-label">学生工作、社团</span>
+                <input class="input" name="student_work_clubs" data-lp-opt /></label>
+              <label class="lp-field lp-span2"><span class="lp-label">未来 3～5 年路径倾向</span>
+                <input class="input" name="career_path_3_5y" data-lp-opt placeholder="学术 / 体制 / 企业 / 创业 / 未定" /></label>
+              <label class="lp-field lp-span2"><span class="lp-label">期望岗位或行业领域</span>
+                <input class="input" name="expected_roles_or_industry" data-lp-opt /></label>
+              <label class="lp-field lp-span2"><span class="lp-label">夏令营 / 预推免 准备进度</span>
+                <textarea class="input" name="admission_prep_stage" data-lp-opt rows="2" placeholder="进度；是否做过模拟面试"></textarea></label>
+              <label class="lp-field lp-span2"><span class="lp-label">当前最大顾虑或短板</span>
+                <textarea class="input" name="main_concerns" data-lp-opt rows="2" placeholder="材料、复习、时间、心态等"></textarea></label>
+            </div>
+            <label class="toggle lp-toggle">
+              <input type="checkbox" id="longUseWeb" checked />
+              <span>生成报告时附带联网摘要（与快问快答一致）</span>
             </label>
-            <button type="button" id="kbDebugRunTrace" class="btn btn-primary">运行 /api/kb/debug/trace</button>
-            <pre id="kbDebugTraceOut" class="kb-debug-pre">（尚未运行）</pre>
-          </div>
-          <div class="card card-elevated pad-lg stack gap-md">
-            <h2 class="h3">小红书 Excel 核验</h2>
-            <p class="muted small">
-              专用流程：总行数 / 索引条数、均匀抽样 5 条解析样例、测试查询下列出命中行及「为何命中」、可选按表行号诊断（解析 / 截断 / 打分）。
-            </p>
-            <label class="sr-only" for="xhsVerifyQuery">核验查询</label>
-            <textarea id="xhsVerifyQuery" class="input" rows="2" placeholder="测试查询，例如：人大财政金融 保研 面试"></textarea>
-            <div class="row-inline">
-              <label class="small muted" for="xhsVerifyTopK">top_k</label>
-              <input type="number" id="xhsVerifyTopK" class="input input-num" value="8" min="1" max="64" />
-              <label class="small muted" for="xhsVerifyRow">核对行号（可选，Excel 表行，含表头=1）</label>
-              <input type="number" id="xhsVerifyRow" class="input input-num" placeholder="如 12" min="1" />
+            <div class="row-actions lp-actions">
+              <button type="button" id="btnReport" class="btn btn-primary">生成规划报告</button>
+              <button type="button" id="btnReportHtml" class="btn btn-secondary" disabled>打开 HTML 报告</button>
+              <button type="button" id="btnDownloadHtml" class="btn btn-secondary" disabled>下载 HTML 报告</button>
             </div>
-            <button type="button" id="xhsVerifyRun" class="btn btn-primary">运行 /api/kb/xiaohongshu/verify</button>
-            <pre id="xhsVerifyOut" class="kb-debug-pre">（尚未运行）</pre>
+            <p id="longPlanErr" class="muted small lp-err hidden" role="alert"></p>
           </div>
-          <div class="card card-elevated pad-lg stack gap-md">
-            <h2 class="h3">官方 PDF 核验</h2>
-            <p class="muted small">
-              对 3 份学院正式 PDF：每份 chunk 数、3 条样例页、并对规则/政策问题跑 <code class="code">official_only</code> 检索，展示具体命中页。
-            </p>
-            <button type="button" id="officialVerifyRun" class="btn btn-primary">运行 /api/kb/official/verify</button>
-            <pre id="officialVerifyOut" class="kb-debug-pre">（尚未运行）</pre>
-          </div>
-          <div class="card card-elevated pad-lg stack gap-md">
-            <h2 class="h3">Web Access 集成测试</h2>
-            <p class="muted small">
-              主路径：web-access（CDP）；兜底：legacy <code class="code">tools/web_search.py</code>。可直接验证官方站点、知乎/微信/小红书风格检索及 fallback 行为。
-            </p>
-            <label class="sr-only" for="waTestQuery">Web Access 测试查询</label>
-            <textarea id="waTestQuery" class="input" rows="2" placeholder="例如：人大财政金融 推免 材料 要求"></textarea>
-            <div class="row-inline">
-              <label class="small muted" for="waTestScenario">场景</label>
-              <select id="waTestScenario" class="input input-select">
-                <option value="official_site">official website retrieval</option>
-                <option value="xhs_wechat_zhihu">xiaohongshu/zhihu/wechat-style retrieval</option>
-                <option value="auto">auto</option>
-              </select>
-              <label class="toggle">
-                <input type="checkbox" id="waForceFallback" />
-                <span>强制 fallback（验证降级链路）</span>
-              </label>
+
+          <div id="longPlanProgress" class="card card-elevated pad-lg" style="display:none" role="status" aria-live="polite">
+            <h2 class="h3" style="margin-bottom:0.75rem">正在生成报告</h2>
+            <div class="progress-bar-track">
+              <div id="progressBarFill" class="progress-bar-fill" style="width:0%"></div>
             </div>
-            <button type="button" id="waTestRun" class="btn btn-primary">运行 /api/web-access/test</button>
-            <pre id="waTestOut" class="kb-debug-pre">（尚未运行）</pre>
+            <p class="progress-text">正在努力生成中，分析环节较多，可能需要等待...</p>
+            <p id="progressStepLabel" class="muted small">初始化…</p>
+          </div>
+
+          <div class="card card-elevated pad-lg">
+            <h2 class="h3">3. 报告预览</h2>
+            <article id="longReportPreview" class="lp-preview prose hidden" aria-live="polite"></article>
+            <p id="longReportPlaceholder" class="muted small">填写表单并点击「生成规划报告」后在此预览。</p>
+            <details class="answer-raw">
+              <summary>查看报告 JSON</summary>
+              <pre id="longReportJson" class="report-pre">（尚未生成）</pre>
+            </details>
           </div>
         </div>
       </section>
 
-      <!-- Official docs placeholder -->
-      <section class="view hidden" id="viewOfficial" data-view-panel="official">
+      <!-- User profile -->
+      <section class="view view-profile hidden" id="viewProfile" data-view-panel="profile">
         <div class="main-header">
-          <h1 class="page-title">官方文件</h1>
-          <p class="page-desc">学院推免、综合素质评价等权威材料，请在办事时核对原件。</p>
-        </div>
-        <div class="card card-elevated pad-lg empty-state loose">
-          <p class="muted">
-            可将项目内 PDF（如学院推免工作通知、评价办法）部署为静态下载或通过后端挂载。
-            当前界面用于强调：<strong class="text-foreground">「官方证据」</strong>在引用类型中的优先级。
+          <p class="workspace-tag">账户 · 保研画像</p>
+          <h1 class="page-title">个人信息</h1>
+          <p class="page-desc">
+            填写并保存你的保研背景与目标；信息按账户分别存储，可用于长程规划表单预填与个性化参考。
           </p>
         </div>
+
+        <div class="stack gap-lg">
+          <div class="card card-elevated pad-lg">
+            <h2 class="h3">基本与学业</h2>
+            <div class="lp-form-grid" id="profileFormBasic">
+              <label class="lp-field"><span class="lp-label">显示名称（选填）</span>
+                <input type="text" class="input" name="display_name" data-profile placeholder="如：小明" /></label>
+              <label class="lp-field"><span class="lp-label">当前就读学校</span>
+                <input type="text" class="input" name="current_school" data-profile placeholder="如：中国人民大学" /></label>
+              <label class="lp-field"><span class="lp-label">就读年级</span>
+                <select class="input" name="grade_year" data-profile>
+                  <option value="">请选择</option>
+                  <option value="大一">大一</option>
+                  <option value="大二">大二</option>
+                  <option value="大三">大三</option>
+                  <option value="大四">大四</option>
+                </select></label>
+              <label class="lp-field lp-span2"><span class="lp-label">就读学院</span>
+                <input type="text" class="input" name="college" data-profile /></label>
+              <label class="lp-field lp-span2"><span class="lp-label">就读专业</span>
+                <input type="text" class="input" name="major" data-profile /></label>
+              <label class="lp-field"><span class="lp-label">GPA</span>
+                <input type="text" class="input" name="gpa" data-profile placeholder="如：3.72 / 4.0" /></label>
+              <label class="lp-field"><span class="lp-label">专业排名</span>
+                <input type="text" class="input" name="major_rank_percentile" data-profile placeholder="如前 10%" /></label>
+            </div>
+          </div>
+
+          <div class="card card-elevated pad-lg">
+            <h2 class="h3">保研目标</h2>
+            <div class="lp-form-grid" id="profileFormTarget">
+              <label class="lp-field"><span class="lp-label">目标学校</span>
+                <input type="text" class="input" name="target_school" data-profile /></label>
+              <label class="lp-field"><span class="lp-label">目标学院</span>
+                <input type="text" class="input" name="target_college" data-profile /></label>
+              <div class="lp-field lp-span2"><span class="lp-label">目标类型</span>
+                <div class="lp-check-group" id="profileDegreeTypes">
+                  <label class="lp-check"><input type="checkbox" value="专硕" data-profile-degree />专硕</label>
+                  <label class="lp-check"><input type="checkbox" value="学硕" data-profile-degree />学硕</label>
+                  <label class="lp-check"><input type="checkbox" value="直博" data-profile-degree />直博</label>
+                </div>
+              </div>
+              <label class="lp-field"><span class="lp-label">雅思</span>
+                <input type="text" class="input" name="english_ielts" data-profile /></label>
+              <label class="lp-field"><span class="lp-label">托福</span>
+                <input type="text" class="input" name="english_toefl" data-profile /></label>
+              <label class="lp-field"><span class="lp-label">六级</span>
+                <input type="text" class="input" name="english_cet6" data-profile /></label>
+              <label class="lp-field lp-span2"><span class="lp-label">地域偏好</span>
+                <input type="text" class="input" name="region_preference" data-profile placeholder="如：京津冀 / 不限" /></label>
+            </div>
+          </div>
+
+          <div class="card card-elevated pad-lg">
+            <h2 class="h3">经历与准备</h2>
+            <div class="lp-form-grid" id="profileFormExp">
+              <label class="lp-field lp-span2"><span class="lp-label">科研与竞赛</span>
+                <textarea class="input" name="research_and_competitions" data-profile rows="2"></textarea></label>
+              <label class="lp-field lp-span2"><span class="lp-label">实习经历</span>
+                <textarea class="input" name="internships" data-profile rows="2"></textarea></label>
+              <label class="lp-field lp-span2"><span class="lp-label">学生工作、社团</span>
+                <input type="text" class="input" name="student_work_clubs" data-profile /></label>
+              <label class="lp-field lp-span2"><span class="lp-label">未来 3～5 年路径倾向</span>
+                <input type="text" class="input" name="career_path_3_5y" data-profile /></label>
+              <label class="lp-field lp-span2"><span class="lp-label">期望岗位或行业</span>
+                <input type="text" class="input" name="expected_roles_or_industry" data-profile /></label>
+              <label class="lp-field lp-span2"><span class="lp-label">夏令营 / 预推免准备进度</span>
+                <textarea class="input" name="admission_prep_stage" data-profile rows="2"></textarea></label>
+              <label class="lp-field lp-span2"><span class="lp-label">当前最大顾虑或短板</span>
+                <textarea class="input" name="main_concerns" data-profile rows="2"></textarea></label>
+              <label class="lp-field lp-span2"><span class="lp-label">备注</span>
+                <textarea class="input" name="notes" data-profile rows="2" placeholder="其他希望系统记住的信息"></textarea></label>
+            </div>
+            <div class="row-actions lp-actions">
+              <button type="button" id="btnSaveProfile" class="btn btn-primary">保存个人信息</button>
+              <button type="button" id="btnApplyProfileToLong" class="btn btn-secondary">同步到长程规划表单</button>
+            </div>
+            <p id="profileSaveMsg" class="muted small lp-err hidden" role="status"></p>
+            <p class="muted small" id="profileUpdatedAt"></p>
+          </div>
+        </div>
       </section>
 
-      <!-- Experience library -->
-      <section class="view hidden" id="viewExperience" data-view-panel="experience">
-        <div class="main-header">
-          <h1 class="page-title">经验库</h1>
-          <p class="page-desc">结构化经验帖与笔记摘要；引用时标为「经验」，可能与个人情况不符。</p>
-        </div>
-        <div class="card card-elevated pad-lg empty-state loose">
-          <p class="muted">
-            经验类内容来自 <code class="code">小红书保研笔记.xlsx</code> 等数据源，检索命中后在右侧显示为
-            <span class="badge badge-exp">经验</span>，并可能标注「疑似推广」。
-          </p>
-        </div>
-      </section>
-
-      <!-- Settings -->
-      <section class="view hidden" id="viewSettings" data-view-panel="settings">
-        <div class="main-header">
-          <h1 class="page-title">设置</h1>
-          <p class="page-desc">与检索行为相关的选项（更多项可随后端扩展）。</p>
-        </div>
-        <div class="card card-elevated pad-lg stack gap-md">
-          <label class="toggle">
-            <input type="checkbox" id="settingsWebMirror" disabled />
-            <span>默认开启联网（与快问快答联动，即将支持）</span>
-          </label>
-          <p class="muted small">联网开关仍在「快问快答」输入区；此处预留统一偏好。</p>
-        </div>
-      </section>
     </main>
 
     <aside class="evidence-panel" aria-label="证据与引用">
@@ -354,17 +523,18 @@
       <div class="evidence-legend card pad-sm">
         <p class="eyebrow">图例</p>
         <ul class="legend-list muted small">
-          <li><span class="badge badge-cred-high">可信·高</span> indexed 学院正式文件</li>
-          <li><span class="badge badge-cred-med">可信·中</span> 经验笔记 / 部分网页</li>
-          <li><span class="badge badge-cred-low">可信·低</span> 短文本、未验证网页</li>
+          <li><span class="badge badge-cred-high">官方确定</span> 官方文件与正式招生材料，可作主要依据</li>
+          <li><span class="badge badge-cred-med">高价值经验</span> 有年份、项目和流程细节的真人经验</li>
+          <li><span class="badge badge-cred-low">经验线索</span> 可参考但样本有限或细节不足</li>
           <li><span class="badge badge-fresh-old">可能过时</span> 经验类默认提示</li>
           <li><span class="badge badge-fresh-web">未验证</span> 联网抓取内容</li>
-          <li><span class="badge badge-ad">推广风险</span> 营销/引流/过度承诺启发式命中</li>
+          <li><span class="badge badge-ad">推广风险</span> 卖课、资料包、私信、+V、手机号、群号等信号命中；仍可作低权重线索</li>
         </ul>
       </div>
     </aside>
   </div>
 
-  <script src="/web/app.js"></script>
+  <script src="/web/session.js?v=auth-2"></script>
+  <script src="/web/app.js?v=quick-stream-1"></script>
 </body>
 </html>

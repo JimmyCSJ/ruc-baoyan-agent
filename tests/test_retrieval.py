@@ -10,7 +10,7 @@ from kb.tokenize import tokenize_query
 def test_retrieve_major_includes_official_pdf() -> None:
     docs, trace = retrieve_documents_with_trace("我想看专业", "major_info", enable_web_search=False)
     assert docs
-    assert any(doc["source"] == "official_pdf" for doc in docs)
+    assert any(doc["source"] in ("official_brochure", "official_pdf") for doc in docs)
     assert trace["stages"][0]["source_group"] == "official"
     assert trace["stages"][1]["source_group"] == "experience"
 
@@ -18,7 +18,7 @@ def test_retrieve_major_includes_official_pdf() -> None:
 def test_retrieve_requirement_includes_official_first() -> None:
     docs, trace = retrieve_documents_with_trace("我想了解申请条件", "admission_requirement", enable_web_search=False)
     assert docs
-    assert any(doc["source"] == "official_pdf" for doc in docs)
+    assert any(doc["source"] in ("official_brochure", "official_pdf") for doc in docs)
     assert trace["stages"][0]["source_group"] == "official"
 
 
@@ -46,9 +46,9 @@ def test_kb_scope_xiaohongshu_excludes_official_kb() -> None:
         "人大保研",
         "general_info",
         enable_web_search=False,
-        kb_scope="xiaohongshu_only",
+        kb_scope="public_only",
     )
-    assert trace.get("kb_scope") == "xiaohongshu_only"
+    assert trace.get("kb_scope") == "public_only"
     assert not any(d.get("source_group") == "official" for d in docs)
     assert any(d.get("source_group") == "experience" for d in docs)
 
@@ -130,8 +130,57 @@ def test_xiaohongshu_only_uses_larger_default_top_k() -> None:
         "保研经验分享",
         "general_info",
         enable_web_search=False,
-        kb_scope="xiaohongshu_only",
+        kb_scope="public_only",
     )
     assert docs
     exp_stage = next(st for st in trace["stages"] if st["source_group"] == "experience")
     assert exp_stage["top_k"] >= 100
+
+
+def test_hybrid_search_enabled_by_default_with_lexical_fallback(monkeypatch) -> None:
+    import kb.service as svc
+
+    monkeypatch.delenv("ENABLE_HYBRID_SEARCH", raising=False)
+    calls = {"hybrid": 0}
+
+    class BrokenHybridEngine:
+        def query(self, *_args, **_kwargs):
+            calls["hybrid"] += 1
+            raise RuntimeError("vector index unavailable")
+
+    monkeypatch.setattr(
+        svc,
+        "get_hybrid_engine",
+        lambda: BrokenHybridEngine(),
+        raising=False,
+    )
+
+    docs = svc.search_experience("保研经验", 3)
+
+    assert calls["hybrid"] >= 1
+    assert docs
+
+
+def test_baoyan_basics_retrieved_for_general_process_questions() -> None:
+    docs, trace = retrieve_documents_with_trace(
+        "保研是什么？推免资格和夏令营接收有什么区别？",
+        "general_info",
+        enable_web_search=False,
+    )
+
+    assert any(d.get("kb_group") == "public_info_baoyan_basics" for d in docs)
+    assert trace.get("query_plan", {}).get("baoyan_stage") in {"general_process", "recommendation_and_receiving"}
+
+
+def test_query_plan_expands_college_exam_question() -> None:
+    _docs, trace = retrieve_documents_with_trace(
+        "人大财金金融专硕保研笔试考什么？",
+        "experience_reference",
+        enable_web_search=False,
+        kb_debug=True,
+    )
+
+    plan = trace.get("query_plan") or {}
+    assert plan.get("needs_college_depth") is True
+    assert "财政金融学院" in plan.get("expanded_query", "")
+    assert "笔试" in plan.get("expanded_query", "")

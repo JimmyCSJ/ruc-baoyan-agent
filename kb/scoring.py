@@ -8,7 +8,14 @@ from kb.internal import InternalChunk
 from kb.tokenize import tokenize_query
 
 
-def score_chunks(query: str, chunks: List[InternalChunk]) -> List[Tuple[int, InternalChunk]]:
+def score_chunks(
+    query: str,
+    chunks: List[InternalChunk],
+    mode: str = "lexical",
+) -> List[Tuple[int, InternalChunk]]:
+    """Lexical match scoring. mode is reserved for future expansion;
+    non-lexical dispatch happens at kb/service.py level."""
+    _ = mode
     tokens = tokenize_query(query)
     if not tokens:
         return [(0, c) for c in chunks]

@@ -13,12 +13,19 @@ EvidenceRole = Literal["primary_policy", "supplementary_experience", "supplement
 _MARKETING_RE = re.compile(
     r"限时|秒杀|抢位|名额有限|仅剩|火热报名|独家|内部通道|上岸密训|上岸包过|保过|包过|稳过|"
     r"100%|百分百录取|不过退费|原价\d|现价\d|限时优惠|钜惠|私信领取|免费领取|0元|"
-    r"咨询(?!学院|招办)|陪跑|一对一辅导|一对一规划|一对一陪跑|付费(?!学费)|辅导课|全程班|内部资料",
+    r"咨询(?!学院|招办)|陪跑|一对一辅导|一对一规划|一对一陪跑|付费(?!学费)|辅导课|全程班|内部资料|资料包|资料合集|真题包|笔记包|上岸资料",
     re.I,
 )
 _REDIRECT_RE = re.compile(
-    r"私聊|私信|加微|加wx|加vx|加v\b|扫码|二维码|关注公号|回复关键词|进群|小窗|"
-    r"戳链接|点我主页|加我|联系方式在|看简介|引流|主页有方式",
+    r"私聊|私信|私我|si\s*我|s\s*i\s*我|加微|加\s*w(?:x|信)?|加wx|加vx|加v\b|加\s*v|"
+    r"\+v|\+vx|\+wx|v[:：][A-Za-z0-9_-]{3,}|vx[:：]|\bwx[:：]|威信|薇信|微\s*信|"
+    r"扣扣|qq[:：]|\bq[:：]|群号|裙号|进群|小窗|扫码|二维码|关注公号|回复关键词|"
+    r"戳链接|点我主页|加我|联系方式在|看简介|引流|主页有方式|主页置顶|评论区见|置顶笔记",
+    re.I,
+)
+_CONTACT_RE = re.compile(
+    r"(?<!\d)1[3-9]\d{9}(?!\d)|(?:电话|手机|手机号|联系方式|联系我|call|tel)[:：]?\s*\d{6,}|"
+    r"(?:微信|vx|wx|v|qq|q)[:：]?\s*[A-Za-z0-9_-]{4,}",
     re.I,
 )
 _UNREALISTIC_RE = re.compile(
@@ -52,6 +59,8 @@ def heuristic_ad_risk(
         reasons.append("营销话术")
     if _REDIRECT_RE.search(text):
         reasons.append("引流/私聊/加好友提示")
+    if _CONTACT_RE.search(text):
+        reasons.append("隐藏联系方式或站外引流")
     if _UNREALISTIC_RE.search(text):
         reasons.append("过度承诺或不实暗示")
 
@@ -142,6 +151,80 @@ def _freshness_official(title: str, provenance: Dict[str, Any]) -> FreshnessHint
     return "unknown"
 
 
+def _has_specific_experience_anchors(title: str, text: str) -> bool:
+    blob = f"{title}\n{text}"
+    has_year = bool(re.search(r"20\d{2}", blob))
+    has_school_or_project = bool(re.search(r"人大|中国人民大学|学院|夏令营|预推免|九推|推免|专业|方向", blob))
+    has_detail = bool(re.search(r"笔试|面试|题型|自我介绍|科研|实习|排名|成绩|材料|导师|英文|追问", blob))
+    return has_year and has_school_or_project and has_detail and len(re.sub(r"\s+", "", text)) >= 80
+
+
+def _evidence_quality(
+    *,
+    source_group: str,
+    source_tag: str,
+    title: str,
+    text: str,
+    suspected_ad: bool,
+) -> Dict[str, Any]:
+    if source_group == "official":
+        if re.search(r"推免|免试|推荐|综合素质|科研能力", title):
+            return {
+                "evidence_quality_tier": 1,
+                "evidence_quality_label": "官方确定",
+                "credibility_notes": ["正式文件，可作为政策和规则的主要依据。"],
+            }
+        return {
+            "evidence_quality_tier": 2,
+            "evidence_quality_label": "官方相关·需转换口径",
+            "credibility_notes": ["正式招生/项目文件可信度高，但若用户问保研，应注意它可能是考研或招生简章口径。"],
+        }
+
+    if source_group == "experience":
+        if suspected_ad:
+            return {
+                "evidence_quality_tier": 5,
+                "evidence_quality_label": "低可信·疑似推广",
+                "credibility_notes": ["可作为线索参考，但因存在推广/引流信号，不能直接作为事实依据。"],
+            }
+        if source_tag == "public_info_baoyan_basics_md":
+            return {
+                "evidence_quality_tier": 3,
+                "evidence_quality_label": "通识说明",
+                "credibility_notes": ["适合解释保研流程和概念，不代表人大某学院当年政策。"],
+            }
+        if _has_specific_experience_anchors(title, text):
+            return {
+                "evidence_quality_tier": 3,
+                "evidence_quality_label": "高价值经验",
+                "credibility_notes": ["有年份、项目或流程细节，适合做准备参考，但仍是个人经验。"],
+            }
+        return {
+            "evidence_quality_tier": 4,
+            "evidence_quality_label": "经验线索",
+            "credibility_notes": ["可参考，但样本有限或细节不足，需要结合其他来源核验。"],
+        }
+
+    if source_group == "web":
+        if suspected_ad or source_tag == "web_xhs":
+            return {
+                "evidence_quality_tier": 5,
+                "evidence_quality_label": "低可信·网页推广风险",
+                "credibility_notes": ["联网网页未验证，且存在平台或推广风险，只能作为线索。"],
+            }
+        return {
+            "evidence_quality_tier": 4,
+            "evidence_quality_label": "网页线索",
+            "credibility_notes": ["联网内容未验证，可用于发现线索，不能覆盖本地知识库和官方文件。"],
+        }
+
+    return {
+        "evidence_quality_tier": 5,
+        "evidence_quality_label": "低可信线索",
+        "credibility_notes": ["来源类型不明确，仅作辅助线索。"],
+    }
+
+
 def build_credibility_fields(
     *,
     source_group: str,
@@ -152,6 +235,13 @@ def build_credibility_fields(
 ) -> Dict[str, Any]:
     prov = dict(provenance or {})
     suspected_ad, ad_reasons = heuristic_ad_risk(title, text, source_group, source_tag)
+    quality = _evidence_quality(
+        source_group=source_group,
+        source_tag=source_tag,
+        title=title,
+        text=text,
+        suspected_ad=suspected_ad,
+    )
 
     if source_group == "official":
         return {
@@ -161,6 +251,7 @@ def build_credibility_fields(
             "freshness": _freshness_official(title, prov),
             "evidence_role": "primary_policy",
             "ad_risk_reasons": [],
+            **quality,
         }
 
     if source_group == "experience":
@@ -172,6 +263,7 @@ def build_credibility_fields(
             "freshness": "possibly_outdated",
             "evidence_role": "supplementary_experience",
             "ad_risk_reasons": ad_reasons,
+            **quality,
         }
 
     if source_group == "web":
@@ -183,6 +275,7 @@ def build_credibility_fields(
             "freshness": "web_unverified",
             "evidence_role": "supplementary_web",
             "ad_risk_reasons": ad_reasons,
+            **quality,
         }
 
     return {
@@ -192,6 +285,7 @@ def build_credibility_fields(
         "freshness": "unknown",
         "evidence_role": "system",
         "ad_risk_reasons": ad_reasons,
+        **quality,
     }
 
 

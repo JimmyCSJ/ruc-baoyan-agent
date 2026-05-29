@@ -18,7 +18,7 @@ User/Web
      -> route_question (agents/router.py)
      -> retrieve_documents_with_trace (agents/retrieval.py)
          -> kb/service.py
-            -> official PDF index (kb/official_pdf.py)
+            -> official brochure index (kb/official_brochures.py)
             -> xiaohongshu Excel index (kb/experience_excel.py)
          -> optional web fallback (tools/web_access_bridge.py + tools/web_search.py)
      -> generate_llm_answer / generate_mock_answer (agents/answer.py)
@@ -51,20 +51,25 @@ cp .env.example .env
 python -m uvicorn server:app --host 127.0.0.1 --port 8000
 ```
 
-打开 [http://127.0.0.1:8000](http://127.0.0.1:8000)。
+打开 [http://127.0.0.1:8000](http://127.0.0.1:8000) 注册/登录后进入工作台 [http://127.0.0.1:8000/app](http://127.0.0.1:8000/app)。各账户的保研个人信息保存在服务端 `data/auth/`（可用 `AUTH_DATA_DIR` 自定义路径）。
 
 ## 常用接口
 
 - `GET /health`：健康检查
 - `POST /api/chat`：主问答
+- `POST /api/exam-tutoring`：笔试辅导（小红书经验库优先）
+- `POST /api/long-chat/report/html`：生成可打开的 HTML 报告
 - `GET /api/kb/status`：知识库状态
 - `POST /api/kb/rebuild`：重建 KB 索引
 - `POST /api/kb/retrieve-preview`：仅检索调试（不走 LLM）
 
 ## 关键配置
 
-- LLM：`DEEPSEEK_API_KEY`、`DEEPSEEK_BASE_URL`、`DEEPSEEK_MODEL`、`ENABLE_REAL_LLM`
-- 大规模经验库召回：`KB_EXPERIENCE_TOP_K_XHS_ONLY`
+- LLM：`MOARK_API_KEY` 或 `DEEPSEEK_API_KEY`（二选一）、`MOARK_BASE_URL` 或 `DEEPSEEK_BASE_URL`、`MOARK_MODEL`；**必须** `ENABLE_REAL_LLM=true` 才会走真实模型（仅有 Key 不够）。
+- 长程规划为 **五段分块生成**：单段 `max_tokens` 取 `min(LONG_PLAN_PART_MAX_TOKENS, LONG_PLAN_PART_OUTPUT_CEILING)`（默认 3072 与 4096），**不会**再与全局 `LLM_MAX_TOKENS` 取较大值，以免单次请求过大。HTTP 读超时见 `LONG_PLAN_LLM_TIMEOUT_S`。占位或网络错误时预览 Markdown 顶部会有说明。
+- 默认检索：`ENABLE_HYBRID_SEARCH=true` 时使用向量 + BM25 混合检索；构建失败会自动回退到关键词检索。
+- 仅公众信息库大规模召回：`KB_PUBLIC_TOP_K_PUBLIC_ONLY`
+- 检索补强：`KB_MANUAL_STATS_TOP_K`（并入 `ruc_2026_manual_stats.txt` 条数上限，默认 14）、`KB_WEAK_FALLBACK_XHS_TOP_K`（命中偏弱时扩大小红书条数，默认 64）
 - 上下文预算：`LLM_CONTEXT_MAX_CHARS`、`LLM_CONTEXT_DOC_MAX_CHARS` 等
 
 ## 测试

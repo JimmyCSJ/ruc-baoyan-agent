@@ -5,11 +5,11 @@ Responsibility: define stable data contracts across graph/agents/tools.
 Avoid putting business logic here.
 """
 
-from typing import Dict, List, Literal, TypedDict
+from typing import Any, Dict, List, Literal, TypedDict
 
 from typing_extensions import NotRequired
 
-KBScope = Literal["hybrid", "official_only", "xiaohongshu_only"]
+KBScope = Literal["hybrid", "official_only", "public_only"]
 
 SourceType = Literal["official_school_document", "experience_note", "web_citation", "other"]
 CredibilityLevel = Literal["high", "medium", "low"]
@@ -41,6 +41,9 @@ class RetrievedDoc(TypedDict):
     freshness: NotRequired[FreshnessHint]
     evidence_role: NotRequired[EvidenceRole]
     ad_risk_reasons: NotRequired[List[str]]
+    evidence_quality_tier: NotRequired[int]
+    evidence_quality_label: NotRequired[str]
+    credibility_notes: NotRequired[List[str]]
 
 
 class TraceStage(TypedDict):
@@ -55,6 +58,8 @@ class RetrievalTrace(TypedDict):
     stages: List[TraceStage]
     merged_for_generation: List[str]
     kb_scope: NotRequired[KBScope]
+    execution_steps: NotRequired[List[str]]
+    official_files_read: NotRequired[List[str]]
     query: NotRequired[str]
     query_tokens: NotRequired[List[str]]
     question_type: NotRequired[QuestionType]
@@ -63,6 +68,7 @@ class RetrievalTrace(TypedDict):
     web_access_used: NotRequired[bool]
     web_fallback_used: NotRequired[bool]
     web_failure_reason: NotRequired[str]
+    query_plan: NotRequired[Dict[str, object]]
     docs_passed_to_generation: NotRequired[List[Dict[str, object]]]
 
 
@@ -81,3 +87,7 @@ class AgentState(TypedDict):
     retrieval_trace: NotRequired[RetrievalTrace]
     kb_debug: NotRequired[bool]
     kb_scope: NotRequired[KBScope]
+    execution_steps: NotRequired[List[str]]
+    official_files_read: NotRequired[List[str]]
+    data_agent_result: NotRequired[str]
+    references: NotRequired[List[Dict[str, Any]]]

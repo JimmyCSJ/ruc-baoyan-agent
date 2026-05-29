@@ -7,17 +7,21 @@ Avoid placing retrieval/answer business logic here.
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# 优先加载与 config.py 同目录下的 .env（避免从其它 cwd 启动 uvicorn 时读不到密钥）
+_env_file = Path(__file__).resolve().parent / ".env"
+load_dotenv(_env_file)
+load_dotenv()  # 当前工作目录下的 .env（若存在可覆盖）
 
 
 @dataclass(frozen=True)
 class Settings:
-    deepseek_api_key: str
-    deepseek_base_url: str
-    deepseek_model: str
+    moark_api_key: str
+    moark_base_url: str
+    moark_model: str
     enable_real_llm: bool
     failover_enabled: bool
     llm_temperature: float
@@ -35,9 +39,9 @@ class Settings:
 
 def get_settings() -> Settings:
     return Settings(
-        deepseek_api_key=os.getenv("DEEPSEEK_API_KEY", ""),
-        deepseek_base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
-        deepseek_model=os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
+        moark_api_key=os.getenv("MOARK_API_KEY", os.getenv("DEEPSEEK_API_KEY", "")),
+        moark_base_url=os.getenv("MOARK_BASE_URL", os.getenv("DEEPSEEK_BASE_URL", "https://api.moark.com/v1")),
+        moark_model=os.getenv("MOARK_MODEL", os.getenv("DEEPSEEK_MODEL", "DeepSeek-V4-Pro")),
         enable_real_llm=os.getenv("ENABLE_REAL_LLM", "false").lower() == "true",
         failover_enabled=os.getenv("LLM_FAILOVER_ENABLED", "true").lower() == "true",
         llm_temperature=float(os.getenv("LLM_TEMPERATURE", "0.7")),

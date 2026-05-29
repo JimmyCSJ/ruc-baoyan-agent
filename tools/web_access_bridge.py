@@ -67,9 +67,10 @@ def _discover_urls(query: str, max_urls: int) -> List[Tuple[str, str, str]]:
         return []
     out: List[Tuple[str, str, str]] = []
     seen: set[str] = set()
+    proxy = os.getenv("WEB_SEARCH_PROXY") or None
     for tag, q in _query_variants(query):
         try:
-            with DDGS() as ddgs:
+            with DDGS(proxy=proxy) as ddgs:
                 raw = list(ddgs.text(q, region="cn-zh", max_results=5, backend="auto") or [])
         except Exception:
             raw = []
