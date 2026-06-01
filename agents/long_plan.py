@@ -56,12 +56,20 @@ def long_plan_report_skeleton() -> Dict[str, Any]:
         "generated_at_iso": "",
         "target_destination_line": "",
         "direction_summary": "",
+        "recommended_portfolio": {"summary": "", "selection_logic": "", "programs": []},
         "programs": [],
         "advantages": "",
         "weaknesses": "",
+        "positioning_groups": {"冲": [], "稳": [], "保": []},
         "positioning_by_program": [],
         "timeline": [],
         "action_guidelines": [],
+        "prep_strategy": {
+            "common_priorities": [],
+            "program_differences": [],
+            "time_allocation": [],
+            "avoid_overinvesting": [],
+        },
         "program_prep": [],
         "references_note": "请以中国人民大学各学院官网、研究生招生网及当年最新通知为准；经验内容仅供参考。",
     }
@@ -295,8 +303,9 @@ def _llm_json_chat(
         "temperature": temperature,
         "top_p": settings.llm_top_p,
         "frequency_penalty": settings.llm_frequency_penalty,
-        "extra_body": {"top_k": settings.llm_top_k, "failover_enabled": settings.failover_enabled},
     }
+    if settings.llm_extra_body:
+        kwargs["extra_body"] = settings.llm_extra_body
     if json_mode or os.getenv("LONG_PLAN_RESPONSE_JSON", "").strip().lower() in ("1", "true", "yes", "on"):
         kwargs["response_format"] = {"type": "json_object"}
 
@@ -415,26 +424,48 @@ def _part_output_ceiling_tokens() -> int:
 
 def _part_skeleton(part: int) -> Dict[str, Any]:
     if part == 1:
-        return {"direction_summary": "", "programs": []}
+        return {
+            "direction_summary": "",
+            "recommended_portfolio": {"summary": "", "selection_logic": "", "programs": []},
+            "programs": [],
+        }
     if part == 2:
-        return {"advantages": "", "weaknesses": "", "positioning_by_program": []}
+        return {
+            "advantages": "",
+            "weaknesses": "",
+            "positioning_groups": {"冲": [], "稳": [], "保": []},
+            "positioning_by_program": [],
+        }
     if part == 3:
         return {"timeline": []}
     if part == 4:
         return {"action_guidelines": []}
     if part == 5:
-        return {"program_prep": []}
+        return {
+            "prep_strategy": {
+                "common_priorities": [],
+                "program_differences": [],
+                "time_allocation": [],
+                "avoid_overinvesting": [],
+            },
+            "program_prep": [],
+        }
     raise ValueError(f"invalid part {part}")
 
 
 def _fallback_slice_for_part(part: int, intake: Dict[str, Any], generated_at_iso: str) -> Dict[str, Any]:
     fb = _fallback_report(intake, generated_at_iso)
     if part == 1:
-        return {"direction_summary": fb["direction_summary"], "programs": fb["programs"]}
+        return {
+            "direction_summary": fb["direction_summary"],
+            "recommended_portfolio": fb.get("recommended_portfolio", {"summary": "", "selection_logic": "", "programs": []}),
+            "programs": fb["programs"],
+        }
     if part == 2:
         return {
             "advantages": fb["advantages"],
             "weaknesses": fb["weaknesses"],
+            "positioning_groups": fb.get("positioning_groups", {"冲": [], "稳": [], "保": []}),
             "positioning_by_program": fb["positioning_by_program"],
         }
     if part == 3:
@@ -442,7 +473,15 @@ def _fallback_slice_for_part(part: int, intake: Dict[str, Any], generated_at_iso
     if part == 4:
         return {"action_guidelines": fb["action_guidelines"]}
     if part == 5:
-        return {"program_prep": fb["program_prep"]}
+        return {
+            "prep_strategy": fb.get("prep_strategy", {
+                "common_priorities": [],
+                "program_differences": [],
+                "time_allocation": [],
+                "avoid_overinvesting": [],
+            }),
+            "program_prep": fb["program_prep"],
+        }
     raise ValueError(f"invalid part {part}")
 
 
@@ -469,22 +508,22 @@ def _part_system_prompt(part: int, sk: Dict[str, Any], kb_has: bool) -> str:
     extras = {
         1: (
             "本段对应报告「一、目标院校可选择项目」。\n"
-            "你必须输出一个 programs 列表，每一项包含四个字段：\n"
-            '  {"college":"学院全称","program_name":"专业全称","degree_type_note":"专业硕士/学术硕士/直博","why_relevant":"为什么适合该用户"}\n'
-            '  JSON 示例（务必模仿）：\n'
-            '  {"programs":[{"college":"财政金融学院","program_name":"金融（证券管理与投资方向）","degree_type_note":"专业硕士",'
-            '"why_relevant":"本院王牌专硕，与用户金融背景高度匹配"}]}\n'
-            "  program_name 必须填写具体的专业方向全称，绝对不能留空、不能填「需核对当年简章」、不能填文件名。\n"
-            "  why_relevant 写1-2句该专业为什么适合此用户（结合用户背景和目标方向）。\n"
-            "必须全面覆盖中国人民大学所有与用户目标相关的学院和项目，至少覆盖：\n"
-            "财政金融学院、经济学院、应用经济学院、智慧治理学院、国际学院(苏州)、"
-            "统计与大数据研究院、统计学院、商学院、深圳研究院等有经济金融相关保研项目的学院。\n"
-            "只列出知识库中实际检索到的、有真实招生文件的学院和项目，不要凭空编造。\n"
+            "目标不是罗列所有可能项目，而是给用户一个可执行的推荐组合。\n"
+            "项目数量规则（强制）：默认只选 3-5 个；只有当用户背景明显很强（例如排名前5%、GPA很高、科研/竞赛/实习多项突出）才可选 6-8 个；绝对禁止超过 8 个。\n"
+            "recommended_portfolio.summary 用 2-3 句说明推荐组合的总体逻辑；selection_logic 说明为什么删掉其他项目。\n"
+            "recommended_portfolio.programs 与 programs 必须保持同一批项目、同一顺序。每一项必须包含：\n"
+            '  {"college":"学院全称","program_name":"具体专业或方向","degree_type_note":"专业硕士/学术硕士/直博","tier_hint":"冲/稳/保","fit_reason":"为什么适合该用户","difference_point":"它和其他推荐项目最核心的差异","risk_note":"主要不确定性或短板","evidence_note":"官方/经验/联网证据简述，引用事实须带[N]"}\n'
+            "program_name 必须具体，不能留空、不能写文件名、不能写「需核对当年简章」。\n"
+            "difference_point 必须能帮助用户区分项目，不得重复写“与背景匹配”。\n"
+            "只列出有检索线索、公开材料或合理专业对应关系的项目；信息不足时写入 risk_note，不要编造官方政策。\n"
         ),
         2: (
             "本段对应「二、核心诊断与定位」。须结合用户表单事实；"
-            "positioning_by_program 须与第一段 programs 一一对应：每条对象的 program_key_or_name 必须写入与对应 program_name 相同或可唯一识别的具体专业名，"
-            "严禁留空、严禁仅写「示例」「项目」等泛称（tier 仅限 冲、稳、保）。\n"
+            "必须按 positioning_groups 输出冲/稳/保三个分组；每个项目只出现在一个分组里。\n"
+            "positioning_by_program 也须与第一段推荐项目一一对应，方便兼容旧版渲染。\n"
+            "每条对象必须包含：program_key_or_name、tier（仅限冲/稳/保）、match_score（1-100整数）、why_this_tier、main_gap、evidence_support、next_action。\n"
+            "why_this_tier 要解释为什么是这个档位；main_gap 写最关键差距；next_action 写下一步最该做的动作。\n"
+            "不得把所有项目都写成同一套理由；没有数据支撑时必须写“缺少公开去向/生源数据支撑”，不得编造比例或录取人数。\n"
         ),
         3: (
             "本段对应「三、关键时间轴」。你必须严格使用以下 5 个固定阶段，不得自行发明时间节点：\n"
@@ -503,16 +542,13 @@ def _part_system_prompt(part: int, sk: Dict[str, Any], kb_has: bool) -> str:
         ),
         4: "本段对应「四、核心行动指南」。action_guidelines 为 5～10 条可执行字符串。\n",
         5: (
-            "本段对应「五、项目准备建议」。若第一段 programs 非空，则 program_prep 条数必须与 programs 相同，绝不能返回空列表 []。\n"
-            "每条对象必须严格包含以下 4 个字段：\n"
-            '  {"program_name":"金融（证券管理与投资方向）","exam_focus":"笔试重点考察431金融学综合（含公司理财、投资学），面试含英文面与专业面","preferences_from_alumni":"往届学长学姐反馈：面试重视科研与实习经历的关联性","official_pointers":"参见财政金融学院2026年招生简章"}\n'
-            "- program_name: 必须与第一段对应项目名称一致\n"
-            "- exam_focus: 该项目的笔试/面试考察重点（基于知识库检索的官方文件）\n"
-            "- preferences_from_alumni: 往届经验偏好和备考建议（基于经验帖或网搜面经）\n"
-            "- official_pointers: 对应官方政策文件线索\n"
-            "内容要求：请简明扼要地提取核心信息。如果知识库和网络检索中确实没有对应项目的具体信息，"
-            "请直接填写「暂无公开经验信息，请以当年学院官方通知为准」。\n"
-            "绝对禁止：为了凑字数而进行无意义的词汇联想、罗列同义词、重复废话或输出空泛的长篇描述。每个字段的输出必须极为精炼。\n"
+            "本段对应「五、项目准备建议」。不要按每个项目复制一张同质化模板，而要输出差异化备考策略。\n"
+            "prep_strategy.common_priorities：列出 3-6 条所有推荐项目都需要做的共性准备。\n"
+            "prep_strategy.program_differences：只写真正不同的备考重点。每条包含 program_name、focus、distinctive_preparation、evidence_or_reason、lower_priority。\n"
+            "prep_strategy.time_allocation：列出 3-5 条时间分配建议，说明哪些项目优先投入。\n"
+            "prep_strategy.avoid_overinvesting：列出 2-4 条不要过度投入的事项。\n"
+            "program_prep 可保留为兼容字段，但内容必须极简，且不得与 prep_strategy 大段重复。\n"
+            "所有具体考核内容、偏好、去向数据如来自资料必须带 [N]；缺少证据时写明缺口，不得编造。\n"
         ),
     }
     return base + extras.get(part, "")
@@ -705,8 +741,130 @@ def _evidence_snippets(docs: List[RetrievedDoc], terms: List[str], limit: int = 
 
 def _program_name_text(program: Dict[str, Any]) -> str:
     return " ".join(
-        str(program.get(k) or "") for k in ("college", "program_name", "degree_type_note", "why_relevant")
+        str(program.get(k) or "")
+        for k in (
+            "college",
+            "program_name",
+            "degree_type_note",
+            "why_relevant",
+            "fit_reason",
+            "difference_point",
+            "tier_hint",
+        )
     )
+
+
+def _portfolio_programs(report: Dict[str, Any]) -> List[Dict[str, Any]]:
+    portfolio = report.get("recommended_portfolio")
+    if isinstance(portfolio, dict) and isinstance(portfolio.get("programs"), list) and portfolio.get("programs"):
+        return [p for p in portfolio.get("programs") or [] if isinstance(p, dict)]
+    return [p for p in report.get("programs") or [] if isinstance(p, dict)]
+
+
+def _set_portfolio_programs(report: Dict[str, Any], programs: List[Dict[str, Any]]) -> None:
+    report["programs"] = programs
+    portfolio = report.get("recommended_portfolio")
+    if not isinstance(portfolio, dict):
+        portfolio = {"summary": "", "selection_logic": "", "programs": []}
+    portfolio["programs"] = programs
+    if not _clean_report_text(portfolio.get("summary")):
+        portfolio["summary"] = "以下为结合用户背景筛出的核心申请组合，避免把精力分散到过多项目。"
+    if not _clean_report_text(portfolio.get("selection_logic")):
+        portfolio["selection_logic"] = "优先保留与目标学院、专业基础、经历叙事和公开材料匹配度更高的项目。"
+    report["recommended_portfolio"] = portfolio
+
+
+def _parse_rank_strength(value: Any) -> float | None:
+    text = str(value or "")
+    nums = [float(x) for x in re.findall(r"\d+(?:\.\d+)?", text)]
+    if not nums:
+        return None
+    if "%" in text or "前" in text:
+        return min(nums)
+    if "/" in text and len(nums) >= 2 and nums[1] > 0:
+        return nums[0] / nums[1] * 100
+    return min(nums)
+
+
+def _long_plan_program_limit(intake: Dict[str, Any]) -> int:
+    rank_pct = _parse_rank_strength(intake.get("major_rank_percentile"))
+    try:
+        gpa = float(re.search(r"\d+(?:\.\d+)?", str(intake.get("gpa") or "")).group(0))  # type: ignore[union-attr]
+    except Exception:
+        gpa = 0.0
+    profile = " ".join(
+        str(intake.get(k) or "")
+        for k in (
+            "research_and_competitions",
+            "internships",
+            "english_scores",
+            "student_work_clubs",
+            "admission_prep_stage",
+        )
+    )
+    strong_signals = sum(
+        1
+        for word in ("国奖", "一等奖", "论文", "核心", "顶会", "大创", "数模", "实习", "证券", "咨询", "雅思", "托福")
+        if word in profile
+    )
+    if (rank_pct is not None and rank_pct <= 5) or gpa >= 3.85 or strong_signals >= 4:
+        return 8
+    return 5
+
+
+def _program_trim_score(program: Dict[str, Any], intake: Dict[str, Any]) -> int:
+    text = _program_name_text(program)
+    target = str(intake.get("target_destination") or "")
+    major = str(intake.get("major") or "")
+    score = 0
+    if target and any(t and t in text for t in re.split(r"[\s，,、/]+", target)):
+        score += 50
+    if major and any(t and t in text for t in re.split(r"[\s，,、/]+", major)):
+        score += 25
+    if any(x in text for x in ("财政金融", "财金", "金融", "证券")):
+        score += 20
+    if str(program.get("tier_hint") or "") in ("冲", "稳"):
+        score += 10
+    for key in ("fit_reason", "why_relevant", "difference_point", "risk_note", "evidence_note"):
+        if _clean_report_text(program.get(key)):
+            score += 3
+    if _clean_report_text(program.get("difference_point")):
+        score += 8
+    return score
+
+
+def _dedupe_programs(programs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+    for p in programs:
+        pname = str(p.get("program_name") or "").strip()
+        if _is_low_value_text(pname):
+            continue
+        college = str(p.get("college") or "").strip()
+        key = re.sub(r"\s+", "", f"{college}|{pname}")
+        if key in seen:
+            continue
+        seen.add(key)
+        if not _clean_report_text(p.get("why_relevant")) and _clean_report_text(p.get("fit_reason")):
+            p["why_relevant"] = p.get("fit_reason")
+        out.append(p)
+    return out
+
+
+def _trim_programs(report: Dict[str, Any], intake: Dict[str, Any], issues: List[str]) -> None:
+    programs = _dedupe_programs(_portfolio_programs(report))
+    limit = _long_plan_program_limit(intake)
+    if len(programs) > limit:
+        scored = sorted(
+            enumerate(programs),
+            key=lambda pair: (_program_trim_score(pair[1], intake), -pair[0]),
+            reverse=True,
+        )
+        keep_indexes = sorted(idx for idx, _ in scored[:limit])
+        removed = len(programs) - limit
+        programs = [programs[i] for i in keep_indexes]
+        issues.append(f"推荐项目超过上限，已按匹配度压缩为 {limit} 个，移除 {removed} 个低优先级项目。")
+    _set_portfolio_programs(report, programs)
 
 
 def _guess_position_tier(program: Dict[str, Any], intake: Dict[str, Any]) -> str:
@@ -728,8 +886,20 @@ def _repair_positioning(
     docs: List[RetrievedDoc],
     issues: List[str],
 ) -> None:
-    programs = [p for p in (report.get("programs") or []) if isinstance(p, dict)]
+    programs = _portfolio_programs(report)
     existing: Dict[str, Dict[str, Any]] = {}
+    raw_groups = report.get("positioning_groups") or {}
+    if isinstance(raw_groups, dict):
+        for tier_name, items in raw_groups.items():
+            if tier_name not in ("冲", "稳", "保") or not isinstance(items, list):
+                continue
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                name = str(item.get("program_key_or_name") or item.get("program_name") or "").strip()
+                if name:
+                    item.setdefault("tier", tier_name)
+                    existing[name] = item
     for item in report.get("positioning_by_program") or []:
         if not isinstance(item, dict):
             continue
@@ -749,13 +919,20 @@ def _repair_positioning(
         item = existing.get(pname) or next(
             (v for k, v in existing.items() if k and (k in pname or pname in k)), {}
         )
-        tier = str(item.get("tier") or "").strip()
-        rationale = _clean_report_text(item.get("rationale"))
+        tier = str(item.get("tier") or p.get("tier_hint") or "").strip()
+        rationale = _clean_report_text(item.get("rationale") or item.get("why_this_tier"))
+        main_gap = _clean_report_text(item.get("main_gap"))
+        evidence_support = _clean_report_text(item.get("evidence_support") or p.get("evidence_note"))
+        next_action = _clean_report_text(item.get("next_action"))
+        try:
+            match_score = int(item.get("match_score") or 0)
+        except Exception:
+            match_score = 0
         if tier not in ("冲", "稳", "保"):
             tier = _guess_position_tier(p, intake)
         if not rationale:
             college = str(p.get("college") or "").strip()
-            why = _clean_report_text(p.get("why_relevant"))
+            why = _clean_report_text(p.get("fit_reason") or p.get("why_relevant"))
             rationale = (
                 f"{college}{pname}与目标方向匹配度较高；结合你的排名、证券研究/咨询经历、数模和计算机辅修背景，"
                 f"建议按“{tier}”档准备。"
@@ -765,9 +942,34 @@ def _repair_positioning(
             elif evidence_hint:
                 rationale += f" 可参考线索：{evidence_hint}"
             issues.append(f"已补全「{pname}」的定位评级。")
-        repaired.append({"program_key_or_name": pname, "tier": tier, "rationale": rationale})
+        if not main_gap:
+            main_gap = _clean_report_text(p.get("risk_note")) or "需进一步核对当年项目考核要求和往年入营/录取线索。"
+        if not evidence_support:
+            evidence_support = "缺少公开去向/生源数据支撑；当前按用户背景与项目匹配度判断。"
+        if not next_action:
+            next_action = "先核对当年官方通知，再补齐该项目最关键的笔面试材料。"
+        if match_score <= 0:
+            match_score = {"冲": 72, "稳": 82, "保": 88}.get(tier, 80)
+        repaired.append(
+            {
+                "program_key_or_name": pname,
+                "tier": tier,
+                "match_score": max(1, min(100, match_score)),
+                "rationale": rationale,
+                "why_this_tier": rationale,
+                "main_gap": main_gap,
+                "evidence_support": evidence_support,
+                "next_action": next_action,
+            }
+        )
 
     report["positioning_by_program"] = repaired
+    groups = {"冲": [], "稳": [], "保": []}
+    for item in repaired:
+        tier = str(item.get("tier") or "")
+        if tier in groups:
+            groups[tier].append(item)
+    report["positioning_groups"] = groups
 
 
 def _repair_program_prep(
@@ -776,7 +978,7 @@ def _repair_program_prep(
     docs: List[RetrievedDoc],
     issues: List[str],
 ) -> None:
-    programs = [p for p in (report.get("programs") or []) if isinstance(p, dict)]
+    programs = _portfolio_programs(report)
     existing: Dict[str, Dict[str, Any]] = {}
     for item in report.get("program_prep") or []:
         if not isinstance(item, dict):
@@ -838,6 +1040,71 @@ def _repair_program_prep(
             issues.append(f"隐藏「{pname}」项目准备建议：未找到足够可用信息。")
 
     report["program_prep"] = repaired
+    strategy = report.get("prep_strategy")
+    if not isinstance(strategy, dict):
+        strategy = {}
+    common = [
+        _clean_report_text(x)
+        for x in (strategy.get("common_priorities") or [])
+        if _clean_report_text(x)
+    ]
+    if not common:
+        common = [
+            "把成绩排名、研究/实习、竞赛和目标项目要求整理成一页申请叙事。",
+            "按官方通知核对材料、报名时间、考核形式和证明文件。",
+            "准备英文自我介绍、简历深挖、专业基础问答和目标项目匹配理由。",
+        ]
+    diffs: List[Dict[str, Any]] = []
+    existing_diffs = strategy.get("program_differences") or []
+    if isinstance(existing_diffs, list):
+        for item in existing_diffs:
+            if isinstance(item, dict) and _clean_report_text(item.get("program_name")):
+                diffs.append(item)
+    known = {str(x.get("program_name") or "").strip() for x in diffs if isinstance(x, dict)}
+    for p in programs:
+        pname = str(p.get("program_name") or "").strip()
+        if not pname or pname in known:
+            continue
+        diff = _clean_report_text(p.get("difference_point"))
+        risk = _clean_report_text(p.get("risk_note"))
+        if not diff and not risk:
+            continue
+        diffs.append(
+            {
+                "program_name": pname,
+                "focus": diff or "围绕项目差异补充专业基础与经历叙事。",
+                "distinctive_preparation": risk or "优先核对当年考核形式，再针对性准备。",
+                "evidence_or_reason": _clean_report_text(p.get("evidence_note")) or "依据项目定位与用户背景匹配判断。",
+                "lower_priority": "",
+            }
+        )
+    time_allocation = [
+        _clean_report_text(x)
+        for x in (strategy.get("time_allocation") or [])
+        if _clean_report_text(x)
+    ]
+    if not time_allocation and programs:
+        time_allocation = [
+            "主目标项目投入最多时间，先完成材料和专业课框架。",
+            "稳妥项目保持同步推进，避免只冲一个方向。",
+            "保底项目只做必要材料和基础面试准备，避免挤占主目标时间。",
+        ]
+    avoid = [
+        _clean_report_text(x)
+        for x in (strategy.get("avoid_overinvesting") or [])
+        if _clean_report_text(x)
+    ]
+    if not avoid:
+        avoid = [
+            "不要为了覆盖更多项目而牺牲主目标材料质量。",
+            "不要把缺少公开证据的经验帖当成确定规则。",
+        ]
+    report["prep_strategy"] = {
+        "common_priorities": common[:6],
+        "program_differences": diffs[: len(programs) or 8],
+        "time_allocation": time_allocation[:5],
+        "avoid_overinvesting": avoid[:4],
+    }
 
 
 def _llm_review_and_repair_report(
@@ -859,10 +1126,13 @@ def _llm_review_and_repair_report(
 
     schema = {
         "direction_summary": report.get("direction_summary", ""),
+        "recommended_portfolio": report.get("recommended_portfolio", {}),
         "advantages": report.get("advantages", ""),
         "weaknesses": report.get("weaknesses", ""),
+        "positioning_groups": report.get("positioning_groups", {}),
         "positioning_by_program": report.get("positioning_by_program", []),
         "action_guidelines": report.get("action_guidelines", []),
+        "prep_strategy": report.get("prep_strategy", {}),
         "program_prep": report.get("program_prep", []),
     }
     sys_m = (
@@ -874,7 +1144,7 @@ def _llm_review_and_repair_report(
         f"用户画像：{json.dumps(intake, ensure_ascii=False)}\n\n"
         f"当前报告片段：{json.dumps(schema, ensure_ascii=False)}\n\n"
         "可用证据线索：\n" + "\n".join(f"- {s}" for s in snippets) + "\n\n"
-        "请重点补全：冲/稳/保定位理由、项目准备建议、本人应对策略、行动指南。"
+        "请重点补全：推荐项目差异点、冲/稳/保分组理由、差异化备考策略、行动指南。"
     )
     try:
         raw = _llm_json_chat(sys_m, user, temperature=0.15, max_tokens=4096, json_mode=True)
@@ -885,10 +1155,13 @@ def _llm_review_and_repair_report(
     out = dict(report)
     for key in (
         "direction_summary",
+        "recommended_portfolio",
         "advantages",
         "weaknesses",
+        "positioning_groups",
         "positioning_by_program",
         "action_guidelines",
+        "prep_strategy",
         "program_prep",
     ):
         if key in data:
@@ -913,14 +1186,15 @@ def review_and_repair_long_plan_report(
     issues: List[str] = []
 
     programs = []
-    for p in report.get("programs") or []:
+    for p in _portfolio_programs(report):
         if not isinstance(p, dict):
             continue
         if _is_low_value_text(p.get("program_name")):
             continue
         p["why_relevant"] = _clean_report_text(p.get("why_relevant"))
         programs.append(p)
-    report["programs"] = programs
+    _set_portfolio_programs(report, programs)
+    _trim_programs(report, intake, issues)
 
     for key in ("direction_summary", "advantages", "weaknesses"):
         cleaned = _clean_report_text(report.get(key))
@@ -958,12 +1232,14 @@ def review_and_repair_long_plan_report(
     }
     report = _llm_review_and_repair_report(report, intake, docs)
     # 模型补写后再跑一遍确定性清洗，避免重新引入空白占位。
+    _trim_programs(report, intake, issues)
     for key in ("direction_summary", "advantages", "weaknesses"):
         cleaned = _clean_report_text(report.get(key))
         if cleaned:
             report[key] = cleaned
         else:
             report.pop(key, None)
+    _trim_programs(report, intake, issues)
     _repair_positioning(report, intake, docs, issues)
     _repair_program_prep(report, intake, docs, issues)
     action_guidelines = []
@@ -1010,13 +1286,33 @@ def _fallback_report(intake: Dict[str, Any], generated_at_iso: str) -> Dict[str,
             "program_name": "金融（示例）",
             "degree_type_note": "请以当年简章为准",
             "why_relevant": "与用户方向匹配时请替换为真实项目列表",
+            "tier_hint": "稳",
+            "fit_reason": "与用户方向匹配时请替换为真实项目列表",
+            "difference_point": "示例项目，仅用于占位。",
+            "risk_note": "未启用模型时无法判断真实风险。",
+            "evidence_note": "请以当年官方通知为准。",
         }
     ]
+    out["recommended_portfolio"] = {
+        "summary": "当前为占位推荐组合，启用模型后会压缩为 3-5 个核心项目。",
+        "selection_logic": "优先保留与目标方向和公开材料更匹配的项目。",
+        "programs": out["programs"],
+    }
     out["advantages"] = f"院校背景：{intake.get('current_school','')}；排名区间：{intake.get('major_rank_percentile','')}。"
     out["weaknesses"] = str(intake.get("main_concerns") or "（请补充短板）")
     out["positioning_by_program"] = [
-        {"program_key_or_name": "示例项目", "tier": "稳", "rationale": "占位；启用模型后按表单与项目逐个生成。"}
+        {
+            "program_key_or_name": "示例项目",
+            "tier": "稳",
+            "match_score": 80,
+            "rationale": "占位；启用模型后按表单与项目逐个生成。",
+            "why_this_tier": "占位；启用模型后按表单与项目逐个生成。",
+            "main_gap": "需核对当年通知。",
+            "evidence_support": "当前无证据支撑。",
+            "next_action": "启用模型并重新生成。",
+        }
     ]
+    out["positioning_groups"] = {"冲": [], "稳": out["positioning_by_program"], "保": []}
     out["timeline"] = [
         {
             "bucket": "短期",
@@ -1038,6 +1334,20 @@ def _fallback_report(intake: Dict[str, Any], generated_at_iso: str) -> Dict[str,
             "official_pointers": "优先查阅学院官网硕士招生/推免专栏。",
         }
     ]
+    out["prep_strategy"] = {
+        "common_priorities": ["核对官方通知、整理简历材料、准备英文问答。"],
+        "program_differences": [
+            {
+                "program_name": "示例项目",
+                "focus": "占位差异点。",
+                "distinctive_preparation": "启用模型后按真实项目补充。",
+                "evidence_or_reason": "当前无证据支撑。",
+                "lower_priority": "",
+            }
+        ],
+        "time_allocation": ["主目标优先，保底项目只做必要准备。"],
+        "avoid_overinvesting": ["不要把占位内容当成最终建议。"],
+    }
     return out
 
 
@@ -1129,11 +1439,19 @@ def report_json_to_markdown(report: Dict[str, Any]) -> str:
     if pre:
         lines.append(pre)
     lines.append(f"规划生成时间：{gen_cn}　　目标去向：{target}\n")
-    lines.append("\n## 一、目标院校可选择项目\n")
+    lines.append("\n## 一、推荐项目组合\n")
     direction_summary = _clean_report_text(report.get("direction_summary"))
     if direction_summary:
         lines.append(direction_summary + "\n")
-    programs = report.get("programs") or []
+    portfolio = report.get("recommended_portfolio") or {}
+    if isinstance(portfolio, dict):
+        summary = _clean_report_text(portfolio.get("summary"))
+        logic = _clean_report_text(portfolio.get("selection_logic"))
+        if summary:
+            lines.append(f"\n**组合概览**：{summary}\n")
+        if logic:
+            lines.append(f"\n**筛选逻辑**：{logic}\n")
+    programs = _portfolio_programs(report)
     if isinstance(programs, list):
         for i, p in enumerate(programs, 1):
             if not isinstance(p, dict):
@@ -1150,10 +1468,20 @@ def report_json_to_markdown(report: Dict[str, Any]) -> str:
             else:
                 deg_suffix = f"（{deg}）" if deg else ""
                 lines.append(f"{i}. **{college} · {prog}** {deg_suffix}\n")
-            if p.get("why_relevant"):
-                lines.append(f"   - 相关性：{p['why_relevant']}\n")
+            fit = _clean_report_text(p.get("fit_reason") or p.get("why_relevant"))
+            diff = _clean_report_text(p.get("difference_point"))
+            risk = _clean_report_text(p.get("risk_note"))
+            tier = str(p.get("tier_hint") or "").strip()
+            if tier:
+                lines.append(f"   - 定位：{tier}\n")
+            if fit:
+                lines.append(f"   - 推荐理由：{fit}\n")
+            if diff:
+                lines.append(f"   - 差异点：{diff}\n")
+            if risk:
+                lines.append(f"   - 风险：{risk}\n")
 
-    lines.append("\n## 二、核心诊断与定位评级\n")
+    lines.append("\n## 二、冲稳保定位与选择理由\n")
     advantages = _clean_report_text(report.get("advantages"))
     weaknesses = _clean_report_text(report.get("weaknesses"))
     if advantages:
@@ -1163,16 +1491,30 @@ def report_json_to_markdown(report: Dict[str, Any]) -> str:
         lines.append("### 2. 核心短板\n")
         lines.append(weaknesses + "\n")
     lines.append("### 3. 定位建议（冲 / 稳 / 保）\n")
-    pos = report.get("positioning_by_program") or []
-    if isinstance(pos, list):
-        for item in pos:
+    groups = report.get("positioning_groups") or {}
+    if not isinstance(groups, dict) or not any(groups.get(k) for k in ("冲", "稳", "保")):
+        groups = {"冲": [], "稳": [], "保": []}
+        for item in report.get("positioning_by_program") or []:
+            if isinstance(item, dict) and item.get("tier") in groups:
+                groups[item.get("tier")].append(item)
+    for tier_name in ("冲", "稳", "保"):
+        items = groups.get(tier_name) or []
+        if not items:
+            continue
+        lines.append(f"\n#### {tier_name}\n")
+        for item in items:
             if not isinstance(item, dict):
                 continue
             name = item.get("program_key_or_name") or item.get("program_name") or "项目"
-            tier = item.get("tier") or ""
-            rationale = _clean_report_text(item.get("rationale"))
-            if tier and rationale:
-                lines.append(f"- **{name}**：{tier} — {rationale}\n")
+            rationale = _clean_report_text(item.get("why_this_tier") or item.get("rationale"))
+            gap = _clean_report_text(item.get("main_gap"))
+            action = _clean_report_text(item.get("next_action"))
+            if rationale:
+                lines.append(f"- **{name}**：{rationale}\n")
+            if gap:
+                lines.append(f"  - 关键差距：{gap}\n")
+            if action:
+                lines.append(f"  - 下一步：{action}\n")
 
     lines.append("\n## 三、关键时间轴与 timeline\n")
     tl = report.get("timeline") or []
@@ -1201,26 +1543,56 @@ def report_json_to_markdown(report: Dict[str, Any]) -> str:
     else:
         lines.append(str(ag) + "\n")
 
-    lines.append("\n## 五、项目准备建议\n")
-    pp = report.get("program_prep") or []
-    if isinstance(pp, list):
-        for block in pp:
-            if not isinstance(block, dict):
-                continue
-            pname = block.get("program_name") or "（未命名项目）"
-            lines.append(f"\n### {pname}\n")
-            ef = _clean_report_text(block.get("exam_focus"))
-            pa = _clean_report_text(block.get("preferences_from_alumni"))
-            op = _clean_report_text(block.get("official_pointers"))
-            st = _clean_report_text(block.get("applicant_strategy"))
-            if ef:
-                lines.append(f"- **考察内容**：{ef}\n")
-            if pa:
-                lines.append(f"- **经验偏好（往届学长学姐）**：{pa}\n")
-            if op:
-                lines.append(f"- **官方线索**：{op}\n")
-            if st:
-                lines.append(f"- **本人应对策略**：{st}\n")
+    lines.append("\n## 五、差异化备考重点\n")
+    prep_strategy = report.get("prep_strategy") or {}
+    if isinstance(prep_strategy, dict) and any(prep_strategy.get(k) for k in ("common_priorities", "program_differences", "time_allocation", "avoid_overinvesting")):
+        common = prep_strategy.get("common_priorities") or []
+        if common:
+            lines.append("\n### 共性准备\n")
+            for x in common:
+                cleaned = _clean_report_text(x)
+                if cleaned:
+                    lines.append(f"- {cleaned}\n")
+        diffs = prep_strategy.get("program_differences") or []
+        if diffs:
+            lines.append("\n### 项目差异化重点\n")
+            for item in diffs:
+                if not isinstance(item, dict):
+                    continue
+                pname = _clean_report_text(item.get("program_name"))
+                if not pname:
+                    continue
+                lines.append(f"- **{pname}**：{_clean_report_text(item.get('focus'))}\n")
+                prep = _clean_report_text(item.get("distinctive_preparation"))
+                if prep:
+                    lines.append(f"  - 差异化准备：{prep}\n")
+        time_alloc = prep_strategy.get("time_allocation") or []
+        if time_alloc:
+            lines.append("\n### 时间分配\n")
+            for x in time_alloc:
+                cleaned = _clean_report_text(x)
+                if cleaned:
+                    lines.append(f"- {cleaned}\n")
+    else:
+        pp = report.get("program_prep") or []
+        if isinstance(pp, list):
+            for block in pp:
+                if not isinstance(block, dict):
+                    continue
+                pname = block.get("program_name") or "（未命名项目）"
+                lines.append(f"\n### {pname}\n")
+                ef = _clean_report_text(block.get("exam_focus"))
+                pa = _clean_report_text(block.get("preferences_from_alumni"))
+                op = _clean_report_text(block.get("official_pointers"))
+                st = _clean_report_text(block.get("applicant_strategy"))
+                if ef:
+                    lines.append(f"- **考察内容**：{ef}\n")
+                if pa:
+                    lines.append(f"- **经验偏好（往届学长学姐）**：{pa}\n")
+                if op:
+                    lines.append(f"- **官方线索**：{op}\n")
+                if st:
+                    lines.append(f"- **本人应对策略**：{st}\n")
 
     appendix = str(report.get("_retrieval_evidence_md") or "").strip()
     if appendix:
@@ -1554,39 +1926,74 @@ def report_json_to_html(report: Dict[str, Any]) -> str:
     target = _html_escape(report.get("target_destination_line") or "中国人民大学保研目标")
     logo_svg = _ruc_logo_svg_inline()
 
-    programs_html = []
-    for p in report.get("programs") or []:
+    program_rows = []
+    for p in _portfolio_programs(report):
         if not isinstance(p, dict) or _is_low_value_text(p.get("program_name")):
             continue
-        programs_html.append(
+        tier = _html_escape(p.get("tier_hint") or "")
+        tier_badge = f'<span class="tier-mini tier-{tier}">{tier}</span>' if tier in ("冲", "稳", "保") else ""
+        reason = _html_text(p.get("fit_reason") or p.get("why_relevant"))
+        diff = _html_text(p.get("difference_point"))
+        risk = _html_text(p.get("risk_note"))
+        program_rows.append(
             f"""
-            <article class="program-card">
-              <div class="card-topline">{_html_escape(p.get('college') or '目标学院')}</div>
-              <h3>{_html_escape(p.get('program_name'))}</h3>
-              <p class="pill">{_html_escape(p.get('degree_type_note') or '项目类型以当年通知为准')}</p>
-              <p>{_html_text(p.get('why_relevant'))}</p>
-            </article>
+            <tr>
+              <td><strong>{_html_escape(p.get('college') or '目标学院')} · {_html_escape(p.get('program_name'))}</strong><br><span class="muted">{_html_escape(p.get('degree_type_note') or '项目类型以当年通知为准')}</span></td>
+              <td>{tier_badge}</td>
+              <td>{reason}</td>
+              <td>{diff}</td>
+              <td>{risk}</td>
+            </tr>
             """
         )
 
+    pos_groups = report.get("positioning_groups") or {}
+    if not isinstance(pos_groups, dict) or not any(pos_groups.get(k) for k in ("冲", "稳", "保")):
+        pos_groups = {"冲": [], "稳": [], "保": []}
+        for item in report.get("positioning_by_program") or []:
+            if isinstance(item, dict) and item.get("tier") in pos_groups:
+                pos_groups[item.get("tier")].append(item)
+
     pos_html = []
-    for item in report.get("positioning_by_program") or []:
-        if not isinstance(item, dict):
-            continue
-        name = _html_escape(item.get("program_key_or_name") or item.get("program_name") or "")
-        tier = _html_escape(item.get("tier") or "")
-        rationale = _html_text(item.get("rationale"))
-        if not name or not tier or not rationale:
-            continue
-        pos_html.append(
-            f"""
-            <article class="position-card tier-{tier}">
-              <span class="tier">{tier}</span>
-              <h4>{name}</h4>
-              <p>{rationale}</p>
-            </article>
-            """
-        )
+    for tier_name in ("冲", "稳", "保"):
+        cards = []
+        for item in pos_groups.get(tier_name) or []:
+            if not isinstance(item, dict):
+                continue
+            name = _html_escape(item.get("program_key_or_name") or item.get("program_name") or "")
+            rationale = _html_text(item.get("why_this_tier") or item.get("rationale"))
+            gap = _html_text(item.get("main_gap"))
+            support = _html_text(item.get("evidence_support"))
+            action = _html_text(item.get("next_action"))
+            score = _html_escape(item.get("match_score") or "")
+            if not name or not rationale:
+                continue
+            rows = ""
+            if gap:
+                rows += f"<p><strong>关键差距：</strong>{gap}</p>"
+            if support:
+                rows += f"<p><strong>证据支撑：</strong>{support}</p>"
+            if action:
+                rows += f"<p><strong>下一步：</strong>{action}</p>"
+            score_html = f'<span class="score">{score}</span>' if score else ""
+            cards.append(
+                f"""
+                <details class="position-detail tier-{tier_name}" open>
+                  <summary><span>{name}</span>{score_html}</summary>
+                  <p>{rationale}</p>
+                  {rows}
+                </details>
+                """
+            )
+        if cards:
+            pos_html.append(
+                f"""
+                <article class="position-column tier-{tier_name}">
+                  <h3>{tier_name}</h3>
+                  {''.join(cards)}
+                </article>
+                """
+            )
 
     timeline_html = []
     for block in report.get("timeline") or []:
@@ -1606,30 +2013,68 @@ def report_json_to_html(report: Dict[str, Any]) -> str:
         )
 
     prep_html = []
-    for block in report.get("program_prep") or []:
-        if not isinstance(block, dict) or _is_low_value_text(block.get("program_name")):
-            continue
-        rows = []
-        field_map = [
-            ("考察内容", "exam_focus"),
-            ("经验偏好", "preferences_from_alumni"),
-            ("官方线索", "official_pointers"),
-            ("本人应对策略", "applicant_strategy"),
-        ]
-        for label, key in field_map:
-            value = _html_text(block.get(key))
-            if value:
-                rows.append(f"<tr><th>{label}</th><td>{value}</td></tr>")
-        if not rows:
-            continue
-        prep_html.append(
-            f"""
-            <article class="prep-card">
-              <h3>{_html_escape(block.get('program_name'))}</h3>
-              <table>{''.join(rows)}</table>
-            </article>
-            """
-        )
+    prep_strategy = report.get("prep_strategy") or {}
+    if isinstance(prep_strategy, dict) and any(prep_strategy.get(k) for k in ("common_priorities", "program_differences", "time_allocation", "avoid_overinvesting")):
+        common_items = "".join(_html_li(x) for x in (prep_strategy.get("common_priorities") or []))
+        diff_rows = []
+        for item in prep_strategy.get("program_differences") or []:
+            if not isinstance(item, dict) or _is_low_value_text(item.get("program_name")):
+                continue
+            diff_rows.append(
+                f"""
+                <tr>
+                  <td><strong>{_html_escape(item.get('program_name'))}</strong></td>
+                  <td>{_html_text(item.get('focus'))}</td>
+                  <td>{_html_text(item.get('distinctive_preparation'))}</td>
+                  <td>{_html_text(item.get('evidence_or_reason'))}</td>
+                  <td>{_html_text(item.get('lower_priority'))}</td>
+                </tr>
+                """
+            )
+        time_items = "".join(_html_li(x) for x in (prep_strategy.get("time_allocation") or []))
+        avoid_items = "".join(_html_li(x) for x in (prep_strategy.get("avoid_overinvesting") or []))
+        if common_items:
+            prep_html.append(f'<article class="prep-panel"><h3>共性准备</h3><ul>{common_items}</ul></article>')
+        if diff_rows:
+            prep_html.append(
+                '<article class="prep-panel"><h3>项目差异化重点</h3>'
+                '<table class="prep-diff-table"><thead><tr><th>项目</th><th>重点</th><th>差异化准备</th><th>依据</th><th>低优先级</th></tr></thead>'
+                f'<tbody>{"".join(diff_rows)}</tbody></table></article>'
+            )
+        if time_items or avoid_items:
+            prep_html.append(
+                f"""
+                <div class="prep-two-col">
+                  <article class="prep-panel"><h3>时间分配</h3><ul>{time_items}</ul></article>
+                  <article class="prep-panel"><h3>避免过度投入</h3><ul>{avoid_items}</ul></article>
+                </div>
+                """
+            )
+    else:
+        for block in report.get("program_prep") or []:
+            if not isinstance(block, dict) or _is_low_value_text(block.get("program_name")):
+                continue
+            rows = []
+            field_map = [
+                ("考察内容", "exam_focus"),
+                ("经验偏好", "preferences_from_alumni"),
+                ("官方线索", "official_pointers"),
+                ("本人应对策略", "applicant_strategy"),
+            ]
+            for label, key in field_map:
+                value = _html_text(block.get(key))
+                if value:
+                    rows.append(f"<tr><th>{label}</th><td>{value}</td></tr>")
+            if not rows:
+                continue
+            prep_html.append(
+                f"""
+                <article class="prep-card">
+                  <h3>{_html_escape(block.get('program_name'))}</h3>
+                  <table>{''.join(rows)}</table>
+                </article>
+                """
+            )
 
     action_items = "".join(_html_li(x) for x in (report.get("action_guidelines") or []))
     advantages = _html_text(report.get("advantages"))
@@ -1639,9 +2084,18 @@ def report_json_to_html(report: Dict[str, Any]) -> str:
     fixed_count = len(review.get("issues_fixed") or []) if isinstance(review, dict) else 0
     quality_badge = f"已完成报告自查与补全，修复 {fixed_count} 处空缺/弱项" if fixed_count else "已完成报告自查"
     sections: List[Tuple[str, str]] = []
-    if programs_html:
+    if program_rows:
         lead = f'<p class="lead">{direction_summary}</p>' if direction_summary else ""
-        sections.append(("目标院校可选择项目", f'{lead}<div class="program-grid">{"".join(programs_html)}</div>'))
+        portfolio = report.get("recommended_portfolio") or {}
+        portfolio_intro = ""
+        if isinstance(portfolio, dict):
+            summary = _html_text(portfolio.get("summary"))
+            logic = _html_text(portfolio.get("selection_logic"))
+            portfolio_intro = f'<div class="portfolio-intro"><p>{summary}</p><p><strong>筛选逻辑：</strong>{logic}</p></div>' if (summary or logic) else ""
+        sections.append((
+            "推荐项目组合",
+            f'{lead}{portfolio_intro}<table class="program-table"><thead><tr><th>项目</th><th>定位</th><th>推荐理由</th><th>差异点</th><th>风险</th></tr></thead><tbody>{"".join(program_rows)}</tbody></table>',
+        ))
 
     diagnosis_cards = ""
     if advantages:
@@ -1650,15 +2104,15 @@ def report_json_to_html(report: Dict[str, Any]) -> str:
         diagnosis_cards += f'<article class="diagnosis-card"><h3>核心短板</h3><p>{weaknesses}</p></article>'
     if diagnosis_cards or pos_html:
         sections.append((
-            "核心诊断与定位评级",
-            f'<div class="diagnosis-grid">{diagnosis_cards}</div><div class="position-grid">{"".join(pos_html)}</div>',
+            "冲稳保定位与选择理由",
+            f'<div class="diagnosis-grid">{diagnosis_cards}</div><div class="position-grid grouped">{"".join(pos_html)}</div>',
         ))
     if timeline_html:
         sections.append(("关键时间轴", f'<div class="timeline">{"".join(timeline_html)}</div>'))
     if action_items:
         sections.append(("核心行动指南", f'<ul class="action-list">{action_items}</ul>'))
     if prep_html:
-        sections.append(("项目准备建议", "".join(prep_html)))
+        sections.append(("差异化备考重点", "".join(prep_html)))
 
     numbered_sections = "\n".join(
         f'<section><h2 class="section-title">{_cn_section_num(i)}、{title}</h2>{body}</section>'
@@ -1692,14 +2146,30 @@ def report_json_to_html(report: Dict[str, Any]) -> str:
     section {{ margin-top:34px; }}
     .section-title {{ margin:0 0 16px; padding-bottom:10px; border-bottom:1px solid var(--line); color:var(--ruc-red); font-size:25px; }}
     .lead {{ font-size:17px; color:#344054; background:#fafafa; padding:18px 20px; border-radius:12px; border:1px solid var(--line); }}
-    .program-grid {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }}
-    .program-card,.position-card,.prep-card,.diagnosis-card {{ border:1px solid var(--line); border-radius:14px; padding:18px 20px; background:#fff; break-inside:avoid; }}
+    .portfolio-intro {{ margin:0 0 14px; padding:16px 18px; border:1px solid var(--line); border-radius:12px; background:#fafafa; color:#344054; }}
+    .portfolio-intro p {{ margin:0 0 6px; }}
+    .portfolio-intro p:last-child {{ margin-bottom:0; }}
+    .program-table {{ table-layout:fixed; }}
+    .program-table th:nth-child(1) {{ width:24%; }}
+    .program-table th:nth-child(2) {{ width:72px; }}
+    .program-table th:nth-child(3),.program-table th:nth-child(4),.program-table th:nth-child(5) {{ width:auto; }}
+    .muted {{ color:var(--muted); font-size:13px; }}
+    .tier-mini {{ display:inline-flex; align-items:center; justify-content:center; min-width:34px; padding:2px 8px; border-radius:999px; font-weight:800; font-size:13px; }}
+    .tier-mini.tier-冲 {{ background:#fff1f2; color:#be123c; }}
+    .tier-mini.tier-稳 {{ background:#ecfdf5; color:var(--green); }}
+    .tier-mini.tier-保 {{ background:#eff6ff; color:var(--blue); }}
+    .program-card,.position-card,.prep-card,.diagnosis-card,.position-column,.prep-panel {{ border:1px solid var(--line); border-radius:14px; padding:18px 20px; background:#fff; break-inside:avoid; }}
     .program-card h3,.prep-card h3 {{ margin:4px 0 8px; font-size:20px; }}
     .card-topline {{ color:var(--muted); font-size:13px; font-weight:700; }}
     .pill,.tier {{ display:inline-flex; align-items:center; padding:3px 10px; border-radius:999px; background:var(--soft); color:var(--ruc-red); font-weight:700; font-size:13px; }}
     .diagnosis-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }}
     .diagnosis-card h3 {{ margin:0 0 8px; }}
     .position-grid {{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-top:16px; }}
+    .position-column h3 {{ margin:0 0 12px; font-size:22px; }}
+    .position-detail {{ border-top:1px solid var(--line); padding:10px 0; }}
+    .position-detail summary {{ cursor:pointer; font-weight:800; display:flex; justify-content:space-between; gap:12px; }}
+    .position-detail p {{ margin:8px 0 0; color:#344054; }}
+    .score {{ display:inline-flex; align-items:center; justify-content:center; min-width:34px; height:24px; border-radius:999px; background:#f2f4f7; color:#344054; font-size:12px; }}
     .position-card h4 {{ margin:8px 0; font-size:17px; }}
     .tier-冲 .tier {{ background:#fff1f2; color:#be123c; }}
     .tier-稳 .tier {{ background:#ecfdf5; color:var(--green); }}
@@ -1711,6 +2181,12 @@ def report_json_to_html(report: Dict[str, Any]) -> str:
     .timeline-item h3 {{ margin:0 0 6px; }}
     .timeline-item ul {{ margin:0; padding-left:1.2em; }}
     .action-list {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 18px; padding-left:20px; }}
+    .prep-panel {{ margin-bottom:16px; }}
+    .prep-panel h3 {{ margin:0 0 10px; }}
+    .prep-panel ul {{ margin:0; padding-left:1.2em; }}
+    .prep-two-col {{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }}
+    .prep-diff-table th:nth-child(1) {{ width:18%; }}
+    .prep-diff-table th:nth-child(2),.prep-diff-table th:nth-child(3) {{ width:22%; }}
     table {{ width:100%; border-collapse:collapse; margin-top:10px; }}
     th,td {{ border:1px solid var(--line); padding:10px 12px; text-align:left; vertical-align:top; }}
     th {{ width:120px; background:#fafafa; color:#344054; }}
@@ -1721,7 +2197,7 @@ def report_json_to_html(report: Dict[str, Any]) -> str:
     .reference-list a {{ color:var(--blue); text-decoration:none; border-bottom:1px solid rgba(37,99,235,.25); }}
     .reference-list li {{ margin-bottom:8px; }}
     .footer-note {{ margin-top:28px; color:var(--muted); font-size:13px; }}
-    @media (max-width:820px) {{ .report-shell{{margin:0;border:none}} .cover{{grid-template-columns:1fr;padding:28px 24px}} main{{padding:24px}} .program-grid,.diagnosis-grid,.position-grid,.action-list{{grid-template-columns:1fr}} h1{{font-size:28px}} }}
+    @media (max-width:820px) {{ .report-shell{{margin:0;border:none}} .cover{{grid-template-columns:1fr;padding:28px 24px}} main{{padding:24px}} .diagnosis-grid,.position-grid,.action-list,.prep-two-col{{grid-template-columns:1fr}} .program-table,.prep-diff-table{{display:block; overflow-x:auto; white-space:normal}} h1{{font-size:28px}} }}
   </style>
 </head>
 <body>

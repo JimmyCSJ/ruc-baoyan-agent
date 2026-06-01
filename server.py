@@ -438,6 +438,7 @@ def exam_tutoring(
 ) -> ExamTutoringResponse:
     """笔试辅导：优先从公众经验库检索笔试科目、题型和备考重点。"""
     from agents.answer import generate_exam_tutoring_answer, generate_mock_answer
+    from agents.evidence_judge import review_evidence_with_model
     from agents.retrieval import _enrich_web_docs
     from kb.service import search_experience_by_kb_groups, search_official
 
@@ -478,6 +479,9 @@ def exam_tutoring(
         docs.extend(web_docs)
     else:
         execution_steps.append("本次未开启联网补充搜索，只使用本地知识库与官方文件。")
+
+    docs = review_evidence_with_model(q, docs)
+    execution_steps.append("已逐条复核资料匹配度、可信度和使用边界。")
 
     prompt_query = (
         f"{q}\n\n"

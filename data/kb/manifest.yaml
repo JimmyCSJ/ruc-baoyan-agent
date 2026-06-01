@@ -7,14 +7,13 @@ official_documents_brochures:
 
 # 公共信息库：小红书笔记 Excel（已移动到 data/public_info_xhs）
 public_info_xhs:
-  excel_path: data/public_info_xhs/小红书保研笔记.xlsx
+  excel_path: data/public_info_xhs/xhs_baoyan_notes.xlsx
   sheet: 0
 
 # 公共信息库补充：手工整理的各学院录取与专业结构统计（TXT）
 public_info_manual_stats:
   txt_path: data/public_info_manual_stats/ruc_2026_manual_stats.txt
 
-# 公共信息库补充：用户整理的保研通识与流程说明（非人大官方政策）
 public_info_baoyan_basics:
   md_path: data/public_info_baoyan_basics/baoyan_basics.md
 

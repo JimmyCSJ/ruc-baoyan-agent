@@ -47,7 +47,8 @@ def _split_markdown_sections(text: str) -> List[Tuple[str, str]]:
 def load_baoyan_basics_md(md_path: str, root: Path) -> tuple[List[InternalChunk], List[str], Dict[str, Any]]:
     path = (root / md_path).resolve()
     if not path.exists():
-        raise FileNotFoundError(f"Baoyan basics Markdown not found: {path}")
+        warn = f"保研通识库 Markdown 不存在，已跳过：{path}"
+        return [], [warn], {"file": md_path, "chunks_indexed": 0, "error": "file_not_found"}
     text = _normalize_text(path.read_text(encoding="utf-8", errors="ignore"))
     warns: List[str] = []
     if not text:

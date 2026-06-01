@@ -8,6 +8,7 @@ Avoid putting retrieval data and answer prompt content directly here.
 from typing import Any, Dict, List
 
 from agents.answer import generate_llm_answer, generate_mock_answer
+from agents.evidence_judge import review_evidence_with_model
 from agents.retrieval import retrieve_documents_with_trace
 from agents.router import classify_question
 from config import get_settings
@@ -84,7 +85,8 @@ def retrieve_docs(state: AgentState) -> Dict[str, object]:
 
 
 def generate_answer(state: AgentState) -> Dict[str, object]:
-    docs = state["retrieved_docs"]
+    docs = review_evidence_with_model(state["user_query"], state["retrieved_docs"])
+    state = {**state, "retrieved_docs": docs}
     data_result = state.get("data_agent_result", "")
     retrieval_section = _retrieval_process_section(state)
     if data_result:
@@ -104,6 +106,7 @@ def generate_answer(state: AgentState) -> Dict[str, object]:
         return {
             "final_answer": hint + retrieval_section + mock_answer,
             "references": references,
+            "retrieved_docs": docs,
         }
 
     try:
@@ -124,4 +127,4 @@ def generate_answer(state: AgentState) -> Dict[str, object]:
             retrieved_docs=docs,
         )
         answer = hint + mock_answer
-    return {"final_answer": retrieval_section + answer, "references": references}
+    return {"final_answer": retrieval_section + answer, "references": references, "retrieved_docs": docs}

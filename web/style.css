@@ -65,6 +65,10 @@ body {
   grid-template-rows: 1fr;
 }
 
+.app.evidence-hidden {
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+}
+
 .sidebar {
   background: var(--card);
   border-right: 1px solid var(--border-subtle);
@@ -1122,6 +1126,16 @@ body {
   align-items: flex-start;
   gap: 0.35rem 0.5rem;
   margin-bottom: 0.45rem;
+}
+
+.evidence-stars {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  line-height: 1;
+  color: hsl(38 90% 42%);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .evidence-item-title {

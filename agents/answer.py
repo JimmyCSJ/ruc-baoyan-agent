@@ -228,13 +228,20 @@ def _meta_line(doc: RetrievedDoc) -> str:
     fresh = doc.get("freshness", "")
     role = doc.get("evidence_role", "")
     quality = doc.get("evidence_quality_label", "")
+    model_label = doc.get("evidence_model_label", "")
+    model_stars = doc.get("evidence_model_stars", "")
+    model_review = doc.get("evidence_model_review") if isinstance(doc.get("evidence_model_review"), dict) else {}
+    model_usage = str(model_review.get("usage_guidance") or "")
+    model_truth = model_review.get("truthfulness_judgment") if isinstance(model_review.get("truthfulness_judgment"), dict) else {}
+    model_truth_level = str(model_truth.get("level") or "")
     notes = doc.get("credibility_notes") or []
     reasons = doc.get("ad_risk_reasons") or []
     rs = "；".join(reasons) if reasons else "无"
     ns = "；".join(str(x) for x in notes[:2]) if notes else "无"
     return (
         f"[kb_group={kg}|source_type={st}|credibility={cred}|suspected_ad={ad}|freshness={fresh}|"
-        f"evidence_role={role}|quality={quality}|credibility_notes={ns}|ad_signals={rs}]"
+        f"evidence_role={role}|quality={quality}|model_label={model_label}|model_stars={model_stars}|"
+        f"model_truth={model_truth_level}|model_usage={model_usage}|credibility_notes={ns}|ad_signals={rs}]"
     )
 
 
@@ -474,9 +481,9 @@ def generate_llm_answer(
         "你是中国人民大学学生的保研规划与研究助手。\n"
         f"当前日期：{today_cn}。凡涉及{LQ}今年{RQ}{LQ}当年{RQ}{LQ}最新{RQ}，都必须以这个日期作为时间锚点；"
         "若资料年份早于当前日期，需说明可能过时。\n"
-        "每条资料行前带有可信度与推广风险标签（credibility、suspected_ad、freshness 等），必须遵守。\n"
-        "资料还带有 quality/credibility_notes：官方确定可作为规则依据；官方相关但需转换口径不能直接套到保研；"
-        "高价值经验/经验线索/通识说明/低可信推广风险都可以参考，但必须按可信度降级表达。\n"
+        "每条资料行前带有模型逐条复核结果（model_label、model_stars、model_truth、model_usage），必须优先遵守。\n"
+        "模型复核标签含义：官方依据=5星，可作规则依据；高价值经验=4星，可作准备建议；"
+        "经验线索=3星，只能辅助归纳；待核验线索=2星，必须提示核验；低可信线索=1星，不得支撑关键结论。\n"
         "执行作风：高主动性、反偷懒。先穷尽证据再下结论，不允许敷衍式回答。\n"
         "在内部思考中必须完成：\n"
         "A) 证据盘点：官方/公众/联网各自是否覆盖、是否有冲突；\n"
@@ -487,7 +494,7 @@ def generate_llm_answer(
         f"1. {LQ}正式文件{RQ}中的制度、资格、时间节点为{LQ}官方结论{RQ}的唯一依据。\n"
         f"2. 标注 suspected_ad=true 或 ad_signals 非空的资料不得在{LQ}官方结论{RQ}中当作事实；"
         f"仅可在{LQ}经验参考{RQ}中谨慎转述并提示核实。\n"
-        f"3. freshness=possibly_outdated 或 web_unverified 的内容须提示{LQ}可能过时或未验证{RQ}。\n"
+        f"3. model_stars<=2 的内容须提示{LQ}需要核验{RQ}，不得写成确定事实。\n"
         f"4. 若正式文件与经验/网页冲突，只采信正式文件，并在{LQ}不确定性{RQ}中说明冲突。\n"
         f"5. 知识库中的{LQ}正式文件{RQ}多为各学院发布的研究生招生/考研考核说明（初试、复试科目等）。"
         f"回答保研/推免问题时必须区分：哪些是{LQ}全国统考/考研复试{RQ}口径、哪些是{LQ}推免/夏令营{RQ}口径；"
@@ -539,7 +546,7 @@ def generate_llm_answer(
         temperature=settings.llm_temperature,
         top_p=settings.llm_top_p,
         frequency_penalty=settings.llm_frequency_penalty,
-        extra_body={"top_k": settings.llm_top_k, "failover_enabled": settings.failover_enabled},
+        **({"extra_body": settings.llm_extra_body} if settings.llm_extra_body else {}),
     )
     content = (resp.choices[0].message.content or "").strip()
     finish_reason = str(getattr(resp.choices[0], "finish_reason", "") or "")
@@ -571,7 +578,8 @@ def generate_exam_tutoring_answer(
         "你是人大保研笔试辅导助手，专门回答夏令营/预推免/推免笔试怎么准备。\n"
         f"当前日期：{today_cn}。回答中的{LQ}今年{RQ}{LQ}最新{RQ}必须以该日期为准；"
         "若证据不是当年官方通知，要明确写为经验归纳。\n"
-        "资料行中的 quality/credibility_notes 是可信度判断：疑似推广或低可信资料仍可作为线索，但必须降级表述并提示核验。\n"
+        "资料行中的 model_label、model_stars、model_truth、model_usage 是逐条模型可信度判断，必须遵守。"
+        "疑似推广或低可信资料仍可作为线索，但必须降级表述并提示核验。\n"
         "证据优先级：官方通知 > 小红书/知乎等经验库 > 联网网页线索。"
         "官方没有明说的内容，不得写成官方结论。\n"
         "\n"
@@ -601,7 +609,7 @@ def generate_exam_tutoring_answer(
         temperature=settings.llm_temperature,
         top_p=settings.llm_top_p,
         frequency_penalty=settings.llm_frequency_penalty,
-        extra_body={"top_k": settings.llm_top_k, "failover_enabled": settings.failover_enabled},
+        **({"extra_body": settings.llm_extra_body} if settings.llm_extra_body else {}),
     )
     content = (resp.choices[0].message.content or "").strip()
     if "【一句话结论】" not in content:

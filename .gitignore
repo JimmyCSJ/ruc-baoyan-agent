@@ -1,16 +1,17 @@
 .venv/
+.venv.broken-*/
 .env
 __pycache__/
 *.pyc
 .DS_Store
 .vscode/
 .idea/
+.claude/
+.venv_backup_name
+.pytest_cache/
+uvicorn_*.log
+*.log
+data/chroma_db/
 data/auth/users.json
 data/auth/sessions.json
 data/auth/profiles/
-
-# Local/runtime artifacts
-uvicorn_*.log
-data/chroma_db/
-data/ruc_stats.db
-.claude/

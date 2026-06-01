@@ -22,6 +22,7 @@ class Settings:
     moark_api_key: str
     moark_base_url: str
     moark_model: str
+    llm_extra_body: dict
     enable_real_llm: bool
     failover_enabled: bool
     llm_temperature: float
@@ -38,10 +39,18 @@ class Settings:
 
 
 def get_settings() -> Settings:
+    base_url = os.getenv("DEEPSEEK_BASE_URL") or os.getenv("MOARK_BASE_URL") or "https://api.deepseek.com"
+    model = os.getenv("DEEPSEEK_MODEL") or os.getenv("MOARK_MODEL") or "deepseek-chat"
+    is_moark = "moark" in base_url.lower()
     return Settings(
-        moark_api_key=os.getenv("MOARK_API_KEY", os.getenv("DEEPSEEK_API_KEY", "")),
-        moark_base_url=os.getenv("MOARK_BASE_URL", os.getenv("DEEPSEEK_BASE_URL", "https://api.moark.com/v1")),
-        moark_model=os.getenv("MOARK_MODEL", os.getenv("DEEPSEEK_MODEL", "DeepSeek-V4-Pro")),
+        moark_api_key=os.getenv("DEEPSEEK_API_KEY") or os.getenv("MOARK_API_KEY", ""),
+        moark_base_url=base_url,
+        moark_model=model,
+        llm_extra_body=(
+            {"top_k": int(os.getenv("LLM_TOP_K", "50")), "failover_enabled": os.getenv("LLM_FAILOVER_ENABLED", "true").lower() == "true"}
+            if is_moark
+            else {}
+        ),
         enable_real_llm=os.getenv("ENABLE_REAL_LLM", "false").lower() == "true",
         failover_enabled=os.getenv("LLM_FAILOVER_ENABLED", "true").lower() == "true",
         llm_temperature=float(os.getenv("LLM_TEMPERATURE", "0.7")),

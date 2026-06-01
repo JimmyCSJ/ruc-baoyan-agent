@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+from dotenv import load_dotenv
+
 from graph.state import RetrievedDoc
 from kb.baoyan_basics_md import load_baoyan_basics_md
 from kb.experience_excel import load_experience_excel
@@ -17,6 +19,9 @@ from kb.manifest import KBManifest, load_manifest, repo_root
 from kb.official_brochures import load_official_brochures, summarize_brochures, write_filenames_txt
 from kb.registry import REGISTRY, RebuildMeta, compute_rebuild_digest
 from kb.scoring import score_chunks
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+load_dotenv()
 
 
 def _env_bool(name: str, default: bool) -> bool:

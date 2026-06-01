@@ -60,6 +60,8 @@ const progressStepLabel = document.getElementById("progressStepLabel");
 const evidenceEmpty = document.getElementById("evidenceEmpty");
 const evidenceGroups = document.getElementById("evidenceGroups");
 const evidenceSubtitle = document.getElementById("evidenceSubtitle");
+const appShell = document.querySelector(".app");
+const evidencePanel = document.querySelector(".evidence-panel");
 
 const kbScopeSeg = document.getElementById("kbScopeSeg");
 const kbGroupCards = document.getElementById("kbGroupCards");
@@ -550,6 +552,11 @@ function legacyCredibilityFromConfidence(conf) {
 }
 
 function credibilityBadgeFromDoc(doc) {
+  if (doc.evidence_model_label) {
+    const stars = Number(doc.evidence_model_stars || 3);
+    const cls = stars >= 5 ? "badge-cred-high" : stars >= 3 ? "badge-cred-med" : "badge-cred-low";
+    return { cls, label: doc.evidence_model_label };
+  }
   if (doc.evidence_quality_label) {
     const tier = Number(doc.evidence_quality_tier || 4);
     const cls = tier <= 2 ? "badge-cred-high" : tier === 3 ? "badge-cred-med" : "badge-cred-low";
@@ -562,12 +569,23 @@ function credibilityBadgeFromDoc(doc) {
   return legacyCredibilityFromConfidence(doc.confidence);
 }
 
-function freshnessBadgeFromDoc(doc) {
-  const f = doc.freshness;
-  if (f === "possibly_outdated") return { cls: "badge-fresh-old", label: "可能过时" };
-  if (f === "web_unverified") return { cls: "badge-fresh-web", label: "网页未验证" };
-  if (f === "indexed_campus_doc") return { cls: "badge-fresh-indexed", label: "校本索引" };
-  return null;
+function starsFromDoc(doc) {
+  const n = Math.max(1, Math.min(5, Number(doc.evidence_model_stars || 0)));
+  if (!n) return "";
+  return `${"★".repeat(n)}${"☆".repeat(5 - n)}`;
+}
+
+function reviewBlock(doc) {
+  return doc && typeof doc.evidence_model_review === "object" ? doc.evidence_model_review : {};
+}
+
+function reviewSubLine(review, key, label) {
+  const block = review && typeof review[key] === "object" ? review[key] : null;
+  if (!block) return "";
+  const level = escapeHtml(block.level || "");
+  const explanation = escapeHtml(block.explanation || "");
+  if (!level && !explanation) return "";
+  return `<p class="evidence-note-line"><strong>${label}${level ? `：${level}` : ""}</strong>${explanation ? `｜${explanation}` : ""}</p>`;
 }
 
 function classifySource(doc) {
@@ -638,7 +656,7 @@ function renderEvidencePanel(sources) {
 
   evidenceEmpty.classList.add("hidden");
   evidenceGroups.classList.remove("hidden");
-  evidenceSubtitle.textContent = `共 ${sources.length} 条引用，已按类型分组。`;
+  evidenceSubtitle.textContent = `共 ${sources.length} 条引用，已由模型逐条判断可信度。`;
 
   const grouped = new Map();
   const order = ["official", "official_doc", "experience", "web", "model", "other"];
@@ -674,22 +692,36 @@ function renderEvidencePanel(sources) {
 
     for (const { doc, meta } of g.items) {
       const cred = credibilityBadgeFromDoc(doc);
-      const fresh = freshnessBadgeFromDoc(doc);
       const ad = suspectedAd(doc, meta.kind);
       const snip = snippetFromContent(doc.content);
       const href = extractLink(doc.content);
       const role = doc.evidence_role ? roleLabel(doc.evidence_role) : "";
       const reasons = Array.isArray(doc.ad_risk_reasons) ? doc.ad_risk_reasons.filter(Boolean) : [];
-      const notes = Array.isArray(doc.credibility_notes) ? doc.credibility_notes.filter(Boolean) : [];
+      const review = reviewBlock(doc);
+      const modelRiskNotes = Array.isArray(review.risk_notes) ? review.risk_notes.filter(Boolean) : [];
+      const starText = starsFromDoc(doc);
       const reasonLine =
-        ad && reasons.length
-          ? `<p class="evidence-warn-line">推广风险线索：${escapeHtml(reasons.join("；"))}</p>`
-          : ad
-            ? `<p class="evidence-warn-line">启发式命中推广/引流风险，请自行甄别。</p>`
-            : "";
-      const notesLine = notes.length
-        ? `<p class="evidence-note-line">可信度说明：${escapeHtml(notes.join("；"))}</p>`
+        modelRiskNotes.length
+          ? `<p class="evidence-warn-line">风险提示：${escapeHtml(modelRiskNotes.join("；"))}</p>`
+          : ad && reasons.length
+            ? `<p class="evidence-warn-line">风险提示：${escapeHtml(reasons.join("；"))}</p>`
+            : ad
+              ? `<p class="evidence-warn-line">风险提示：命中推广/引流信号，请降权看待。</p>`
+              : "";
+      const usageLine = review.usage_guidance
+        ? `<p class="evidence-note-line"><strong>使用建议：</strong>${escapeHtml(review.usage_guidance)}</p>`
         : "";
+      const notesLine =
+        review && (review.target_match || review.evidence_strength || review.truthfulness_judgment || review.usage_guidance)
+          ? [
+              reviewSubLine(review, "target_match", "匹配度"),
+              reviewSubLine(review, "evidence_strength", "证据强度"),
+              reviewSubLine(review, "truthfulness_judgment", "可信判断"),
+              usageLine,
+            ].join("")
+          : ad
+            ? `<p class="evidence-warn-line">风险提示：命中推广/引流信号，请降权看待。</p>`
+            : "";
 
       const item = document.createElement("div");
       item.className = "evidence-item";
@@ -701,7 +733,6 @@ function renderEvidencePanel(sources) {
       const roleBadge = role
         ? `<span class="badge badge-neutral" style="font-size:0.6rem;text-transform:none">${escapeHtml(role)}</span>`
         : "";
-      const freshHtml = fresh ? `<span class="badge ${fresh.cls}">${escapeHtml(fresh.label)}</span>` : "";
       const kbGroupBadge = doc.kb_group
         ? `<span class="badge badge-neutral" style="font-size:0.6rem;text-transform:none" title="KB 分组">${escapeHtml(
             doc.kb_group,
@@ -715,7 +746,7 @@ function renderEvidencePanel(sources) {
           ${subBadge}
           ${roleBadge}
           <span class="badge ${cred.cls}">${escapeHtml(cred.label)}</span>
-          ${freshHtml}
+          ${starText ? `<span class="evidence-stars" aria-label="可信星级">${starText}</span>` : ""}
           ${ad ? '<span class="badge badge-ad">推广风险</span>' : ""}
         </div>
         <p class="evidence-item-title">${title}</p>
@@ -865,6 +896,9 @@ function setActiveView(viewId) {
     if (!el) return;
     el.classList.toggle("hidden", id !== viewId);
   });
+  const showEvidence = viewId === "quick" || viewId === "exam";
+  appShell?.classList.toggle("evidence-hidden", !showEvidence);
+  evidencePanel?.classList.toggle("hidden", !showEvidence);
   if (viewId === "profile") {
     loadUserProfile().catch(() => {});
   }
@@ -1478,12 +1512,6 @@ async function runLongPlanReport() {
       longReportPreview.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
     if (longReportPlaceholder) longReportPlaceholder.classList.add("hidden");
-    // Render evidence panel for long plan
-    if (lastDocs && lastDocs.length) {
-      renderEvidencePanel(lastDocs);
-      if (evidenceSubtitle)
-        evidenceSubtitle.textContent = `长程规划共引用 ${lastDocs.length} 条资料，已按类型分组。`;
-    }
     if (htmlBtn) htmlBtn.disabled = !lastLongPlanHtmlUrl;
     if (dlBtn) dlBtn.disabled = !(lastLongPlanHtmlUrl || lastLongPlanMarkdown || lastLongPlanReport);
   } catch (e) {
