@@ -106,7 +106,6 @@ const views = {
   interview: document.getElementById("viewInterview"),
   long: document.getElementById("viewLong"),
   calendar: document.getElementById("viewCalendar"),
-  todos: document.getElementById("viewTodos"),
   profile: document.getElementById("viewProfile"),
 };
 
@@ -1034,10 +1033,8 @@ function setActiveView(viewId) {
   }
   if (viewId === "calendar" && typeof window.initStudyCalendar === "function") {
     window.initStudyCalendar().catch(() => {});
+    if (typeof window.initTodoMatrix === "function") window.initTodoMatrix().catch(() => {});
     renderTodayWorkbench().catch(() => {});
-  }
-  if (viewId === "todos" && typeof window.initTodoMatrix === "function") {
-    window.initTodoMatrix().catch(() => {});
   }
 }
 
@@ -1091,12 +1088,12 @@ function applyProfileToLongPlanForm(profile) {
     english_cet6: p.english_cet6,
     research_and_competitions: p.research_and_competitions,
     internships: p.internships,
-    region_preference: p.region_preference,
     student_work_clubs: p.student_work_clubs,
     career_path_3_5y: p.career_path_3_5y,
     expected_roles_or_industry: p.expected_roles_or_industry,
     admission_prep_stage: p.admission_prep_stage,
     main_concerns: p.main_concerns,
+    notes: p.notes,
   };
   Object.entries(map).forEach(([name, val]) => {
     const el = root.querySelector(`[name="${name}"]`);
@@ -1777,27 +1774,146 @@ function setLongPlanActionButtons(enabled) {
   if (btnPlanToTodos) btnPlanToTodos.disabled = !enabled;
 }
 
-function collectLongPlanActionTexts() {
+function inferTimelineYear(month) {
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  let year = now.getFullYear();
+  if (month < currentMonth && currentMonth >= 11 && month <= 3) year += 1;
+  return year;
+}
+
+function buildDateKey(year, month, day) {
+  return `${year}-${padDatePart(month)}-${padDatePart(day)}`;
+}
+
+function parseTimelineWindowDate(text, fallbackIndex = 0) {
+  const raw = String(text || "").trim();
+  const now = new Date();
+  if (!raw) return dateKeyFromDateObj(addDays(now, Math.max(0, fallbackIndex) * 7));
+
+  let m = raw.match(/(20\d{2})\s*[年\/.-]\s*(\d{1,2})\s*[月\/.-]\s*(\d{1,2})\s*日?/);
+  if (m) {
+    return buildDateKey(Number(m[1]), Number(m[2]), Number(m[3]));
+  }
+
+  m = raw.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日?/);
+  if (m) {
+    const month = Number(m[1]);
+    return buildDateKey(inferTimelineYear(month), month, Number(m[2]));
+  }
+
+  m = raw.match(/(\d{1,2})\s*月\s*(上旬|中旬|下旬)/);
+  if (m) {
+    const month = Number(m[1]);
+    const dayByPeriod = { 上旬: 5, 中旬: 15, 下旬: 25 };
+    return buildDateKey(inferTimelineYear(month), month, dayByPeriod[m[2]] || 15);
+  }
+
+  m = raw.match(/最近\s*(\d+)\s*周/);
+  if (m) {
+    const days = Math.max(0, Math.min(28, Number(m[1]) * 7));
+    return dateKeyFromDateObj(addDays(now, days));
+  }
+
+  if (/即日起|立即|现在|今天|本周/.test(raw)) {
+    return dateKeyFromDateObj(now);
+  }
+
+  m = raw.match(/(\d{1,2})\s*月/);
+  if (m) {
+    const month = Number(m[1]);
+    return buildDateKey(inferTimelineYear(month), month, 15);
+  }
+
+  return dateKeyFromDateObj(addDays(now, Math.max(0, fallbackIndex) * 7));
+}
+
+function timelineDateForItem(item, index = 0) {
+  if (item && typeof item === "object") {
+    if (item.date) return String(item.date);
+    return parseTimelineWindowDate(
+      item.deadline_or_window || item.window || item.text || item.title || item.name || "",
+      index,
+    );
+  }
+  return parseTimelineWindowDate(item, index);
+}
+
+function collectLongPlanTimelineItems() {
   const report = lastLongPlanReport || {};
-  const out = [];
-  (Array.isArray(report.action_guidelines) ? report.action_guidelines : []).forEach((x) => {
-    const s = String(x || "").trim();
-    if (s) out.push(s);
-  });
-  (Array.isArray(report.timeline) ? report.timeline : []).forEach((block) => {
+  const timeline = [];
+  (Array.isArray(report.timeline) ? report.timeline : []).forEach((block, idx) => {
     if (!block || typeof block !== "object") return;
     const title = String(block.title || "").trim();
     const tasks = String(block.core_tasks || "").trim();
     const bucket = String(block.bucket || "").trim();
-    const windowText = String(block.deadline_or_window || "").trim();
+    const deadline_or_window = String(block.deadline_or_window || "").trim();
     const text = [bucket, title, tasks].filter(Boolean).join("：");
-    if (text) out.push([text, windowText].filter(Boolean).join(" · "));
+    if (!text) return;
+    timeline.push({
+      text,
+      title: title || bucket || `阶段 ${idx + 1}`,
+      deadline_or_window,
+      date: timelineDateForItem(block, idx),
+      source: "timeline",
+    });
   });
-  (Array.isArray(report.positioning_by_program) ? report.positioning_by_program : []).forEach((item) => {
+  return timeline;
+}
+
+function collectLongPlanTodoItems() {
+  const report = lastLongPlanReport || {};
+  const timelineItems = collectLongPlanTimelineItems();
+  const actions = (Array.isArray(report.action_guidelines) ? report.action_guidelines : [])
+    .map((x) => String(x || "").trim())
+    .filter(Boolean);
+
+  const out = actions.map((text, idx) => {
+    const stage = timelineItems.length
+      ? timelineItems[Math.min(timelineItems.length - 1, Math.floor((idx * timelineItems.length) / Math.max(1, actions.length)))]
+      : null;
+    return {
+      text,
+      title: stage ? stage.title : `行动 ${idx + 1}`,
+      deadline_or_window: stage ? stage.deadline_or_window : text,
+      date: stage ? stage.date : timelineDateForItem({ text }, idx),
+      quadrant: idx < 3 ? "I" : "II",
+      source: "action_guidelines",
+    };
+  });
+
+  if (out.length) return out;
+
+  (Array.isArray(report.positioning_by_program) ? report.positioning_by_program : []).forEach((item, idx) => {
     if (!item || typeof item !== "object") return;
     const program = String(item.program_key_or_name || "").trim();
     const action = String(item.next_action || "").trim();
-    if (action) out.push(program ? `${program}：${action}` : action);
+    if (!action) return;
+    const text = program ? `${program}：${action}` : action;
+    out.push({
+      text,
+      title: program || `项目行动 ${idx + 1}`,
+      deadline_or_window: text,
+      date: timelineDateForItem({ text }, idx),
+      quadrant: idx < 3 ? "I" : "II",
+      source: "positioning_by_program",
+    });
+  });
+
+  return out.length ? out : timelineItems;
+}
+
+function collectLongPlanCalendarItems() {
+  const timelineItems = collectLongPlanTimelineItems();
+  if (timelineItems.length) return timelineItems.slice(0, 8);
+  return collectLongPlanTodoItems().slice(0, 8);
+}
+
+function collectLongPlanActionTexts() {
+  const out = [];
+  collectLongPlanTodoItems().forEach((item) => {
+    const s = String(item.text || "").trim();
+    if (s) out.push(s);
   });
   return Array.from(new Set(out)).slice(0, 12);
 }
@@ -1813,8 +1929,8 @@ function longPlanGeneratedGuard() {
 
 async function addLongPlanToCalendar() {
   if (!longPlanGeneratedGuard()) return;
-  const actions = collectLongPlanActionTexts();
-  if (!actions.length) {
+  const calendarItems = collectLongPlanCalendarItems();
+  if (!calendarItems.length) {
     if (longPlanErr) {
       longPlanErr.textContent = "报告里没有可拆分的行动项。";
       longPlanErr.classList.remove("hidden");
@@ -1830,13 +1946,13 @@ async function addLongPlanToCalendar() {
     const completions = data.completions && typeof data.completions === "object" ? data.completions : {};
     const now = new Date();
     const createdAt = now.toISOString();
-    const newPlans = actions.slice(0, 8).map((text, idx) => ({
+    const newPlans = calendarItems.slice(0, 8).map((item, idx) => ({
       id: `lp_${Date.now().toString(36)}_${idx}`,
-      title: text.slice(0, 80),
+      title: String(item.text || item.title || "长程规划行动").slice(0, 80),
       color: "#2563eb",
       type: "once",
-      date: dateKeyFromDateObj(addDays(now, idx)),
-      note: "来自长程规划报告",
+      date: timelineDateForItem(item, idx),
+      note: ["来自长程规划报告", item.deadline_or_window].filter(Boolean).join(" · "),
       created_at: createdAt,
     }));
     const saveRes = await apiFetch("/api/auth/study-calendar", {
@@ -1846,7 +1962,7 @@ async function addLongPlanToCalendar() {
     const saved = await parseJsonResponse(saveRes);
     if (!saveRes.ok) throw new Error(saved.detail || "保存学习日历失败");
     if (longPlanErr) {
-      longPlanErr.textContent = `已加入学习日历：${newPlans.length} 项`;
+      longPlanErr.textContent = `已按报告时间线加入学习日历：${newPlans.length} 项`;
       longPlanErr.classList.remove("hidden");
       longPlanErr.classList.add("ok");
     }
@@ -1864,8 +1980,8 @@ async function addLongPlanToCalendar() {
 
 async function addLongPlanToTodos() {
   if (!longPlanGeneratedGuard()) return;
-  const actions = collectLongPlanActionTexts();
-  if (!actions.length) {
+  const todoItems = collectLongPlanTodoItems();
+  if (!todoItems.length) {
     if (longPlanErr) {
       longPlanErr.textContent = "报告里没有可拆分的行动项。";
       longPlanErr.classList.remove("hidden");
@@ -1880,12 +1996,12 @@ async function addLongPlanToTodos() {
     const items = Array.isArray(data.items) ? data.items : [];
     const now = new Date();
     const createdAt = now.toISOString();
-    const newItems = actions.slice(0, 10).map((text, idx) => ({
+    const newItems = todoItems.slice(0, 10).map((item, idx) => ({
       id: `lt_${Date.now().toString(36)}_${idx}`,
-      name: text.slice(0, 80),
-      details: "来自长程规划报告",
-      date: dateKeyFromDateObj(addDays(now, idx)),
-      quadrant: idx < 3 ? "I" : "II",
+      name: String(item.text || item.title || "长程规划待办").slice(0, 80),
+      details: ["来自长程规划报告", item.deadline_or_window].filter(Boolean).join(" · "),
+      date: timelineDateForItem(item, idx),
+      quadrant: item.quadrant || (idx < 3 ? "I" : "II"),
       created_at: createdAt,
     }));
     const saveRes = await apiFetch("/api/auth/todos", {
@@ -1895,7 +2011,7 @@ async function addLongPlanToTodos() {
     const saved = await parseJsonResponse(saveRes);
     if (!saveRes.ok) throw new Error(saved.detail || "保存待办失败");
     if (longPlanErr) {
-      longPlanErr.textContent = `已拆成待办：${newItems.length} 项`;
+      longPlanErr.textContent = `已按报告时间线拆成待办：${newItems.length} 项`;
       longPlanErr.classList.remove("hidden");
       longPlanErr.classList.add("ok");
     }

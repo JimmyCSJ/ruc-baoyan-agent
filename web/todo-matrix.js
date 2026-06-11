@@ -16,7 +16,7 @@
   let controlsBound = false;
   let saveInFlight = null;
 
-  const root = document.getElementById("viewTodos");
+  const root = document.getElementById("calendarTodoSection") || document.getElementById("viewTodos");
   if (!root) return;
 
   const matrixEl = document.getElementById("todoMatrix");

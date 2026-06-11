@@ -1932,6 +1932,14 @@ body {
 }
 
 /* ===== Todo matrix ===== */
+.calendar-todo-section {
+  margin-top: 1.25rem;
+}
+
+.calendar-todo-section .compact-header {
+  margin-bottom: 1rem;
+}
+
 .view-todos {
   max-width: 72rem;
 }

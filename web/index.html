@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/web/style.css?v=20260529-evidence-review-1" />
+  <link rel="stylesheet" href="/web/style.css?v=20260611-calendar-todo-1" />
 </head>
 <body>
   <div class="app">
@@ -41,10 +41,6 @@
         <button type="button" class="nav-item" data-view="interview" id="navInterview">
           <span class="nav-icon" aria-hidden="true">◉</span>
           <span class="nav-label">面试辅导</span>
-        </button>
-        <button type="button" class="nav-item" data-view="todos" id="navTodos">
-          <span class="nav-icon" aria-hidden="true">☑</span>
-          <span class="nav-label">待办事项</span>
         </button>
         <button type="button" class="nav-item" data-view="profile" id="navProfile">
           <span class="nav-icon" aria-hidden="true">☺</span>
@@ -376,9 +372,7 @@
                 <textarea class="input" name="research_and_competitions" data-lp-opt rows="2" placeholder="大创、论文、建模、商赛等"></textarea></label>
               <label class="lp-field lp-span2"><span class="lp-label">实习经历</span>
                 <textarea class="input" name="internships" data-lp-opt rows="2"></textarea></label>
-              <label class="lp-field"><span class="lp-label">保研院校地域偏好</span>
-                <input class="input" name="region_preference" data-lp-opt placeholder="如：京津冀 / 不限" /></label>
-              <label class="lp-field"><span class="lp-label">学生工作、社团</span>
+              <label class="lp-field lp-span2"><span class="lp-label">学生工作、社团</span>
                 <input class="input" name="student_work_clubs" data-lp-opt /></label>
               <label class="lp-field lp-span2"><span class="lp-label">未来 3～5 年路径倾向</span>
                 <input class="input" name="career_path_3_5y" data-lp-opt placeholder="学术 / 体制 / 企业 / 创业 / 未定" /></label>
@@ -388,6 +382,8 @@
                 <textarea class="input" name="admission_prep_stage" data-lp-opt rows="2" placeholder="进度；是否做过模拟面试"></textarea></label>
               <label class="lp-field lp-span2"><span class="lp-label">当前最大顾虑或短板</span>
                 <textarea class="input" name="main_concerns" data-lp-opt rows="2" placeholder="材料、复习、时间、心态等"></textarea></label>
+              <label class="lp-field lp-span2"><span class="lp-label">备注</span>
+                <textarea class="input" name="notes" data-lp-opt rows="2" placeholder="其他希望系统记住的信息"></textarea></label>
             </div>
             <label class="toggle lp-toggle">
               <input type="checkbox" id="longUseWeb" checked />
@@ -582,84 +578,84 @@
             </div>
           </aside>
         </div>
-      </section>
 
-      <!-- Todo matrix -->
-      <section class="view view-todos hidden" id="viewTodos" data-view-panel="todos">
-        <div class="main-header">
-          <p class="workspace-tag">规划 · 优先级管理</p>
-          <h1 class="page-title">待办事项</h1>
-          <p class="page-desc">
-            四象限矩阵按重要程度划分待办（I 级最重要，IV 级最低）。坐标系中仅展示名称，点击可查看细节；数据按账户保存，下次登录仍可查看。
-          </p>
-        </div>
-
-        <div class="todo-layout">
-          <div class="todo-main card card-elevated pad-lg">
-            <div class="todo-matrix-wrap" aria-label="待办四象限矩阵">
-              <div class="todo-axis todo-axis-y">
-                <span class="todo-axis-label todo-axis-top">重要 ↑</span>
-                <span class="todo-axis-label todo-axis-bottom">↓ 不重要</span>
-              </div>
-              <div class="todo-matrix-center">
-                <div class="todo-matrix" id="todoMatrix"></div>
-                <div class="todo-axis todo-axis-x">
-                  <span class="todo-axis-label">← 不紧急</span>
-                  <span class="todo-axis-label">紧急 →</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="todo-detail-panel hidden card pad-sm" id="todoDetailPanel">
-              <div class="todo-detail-head">
-                <h3 class="h3" id="todoDetailTitle">—</h3>
-                <button type="button" class="btn btn-ghost btn-sm" id="todoDetailDismiss" aria-label="关闭">×</button>
-              </div>
-              <div id="todoDetailBody"></div>
-            </div>
-
-            <div class="todo-add-section">
-              <h2 class="h3">添加待办</h2>
-              <div class="cal-form-grid">
-                <label class="lp-field">
-                  <span class="lp-label">名称</span>
-                  <input type="text" class="input" id="todoFormName" placeholder="如：整理夏令营材料" maxlength="80" />
-                </label>
-                <label class="lp-field">
-                  <span class="lp-label">重要程度（象限）</span>
-                  <select class="input" id="todoFormQuadrant">
-                    <option value="I">I 级 · 重要且紧急</option>
-                    <option value="II" selected>II 级 · 重要不紧急</option>
-                    <option value="III">III 级 · 紧急不重要</option>
-                    <option value="IV">IV 级 · 不重要不紧急</option>
-                  </select>
-                </label>
-                <label class="lp-field">
-                  <span class="lp-label">日期（选填）</span>
-                  <input type="date" class="input" id="todoFormDate" />
-                </label>
-                <label class="lp-field lp-span2">
-                  <span class="lp-label">细节（选填）</span>
-                  <textarea class="input" id="todoFormDetails" rows="2" maxlength="500" placeholder="补充说明、步骤或备注"></textarea>
-                </label>
-              </div>
-              <button type="button" class="btn btn-secondary" id="todoAddBtn">添加到矩阵</button>
-            </div>
+        <!-- Todo matrix -->
+        <section class="calendar-todo-section" id="calendarTodoSection" aria-label="创新待办矩阵">
+          <div class="main-header compact-header">
+            <p class="workspace-tag">日历 · 优先级管理</p>
+            <h2 class="page-title">创新待办矩阵</h2>
+            <p class="page-desc">
+              把待办直接放进学习日历：有日期的事项会显示到月历里，四象限帮助区分“现在必须做”和“需要提前准备”的事情。
+            </p>
           </div>
 
-          <aside class="todo-sidebar">
-            <div class="card card-elevated pad-lg">
-              <h2 class="h3">我的待办列表</h2>
-              <p class="muted small">按 I → IV 重要程度排序；修改后会自动保存到当前账户。</p>
-              <div id="todoList" class="todo-list"></div>
-              <div class="row-actions">
-                <button type="button" class="btn btn-primary" id="todoSaveBtn">保存待办</button>
+          <div class="todo-layout">
+            <div class="todo-main card card-elevated pad-lg">
+              <div class="todo-matrix-wrap" aria-label="待办四象限矩阵">
+                <div class="todo-axis todo-axis-y">
+                  <span class="todo-axis-label todo-axis-top">重要 ↑</span>
+                  <span class="todo-axis-label todo-axis-bottom">↓ 不重要</span>
+                </div>
+                <div class="todo-matrix-center">
+                  <div class="todo-matrix" id="todoMatrix"></div>
+                  <div class="todo-axis todo-axis-x">
+                    <span class="todo-axis-label">← 不紧急</span>
+                    <span class="todo-axis-label">紧急 →</span>
+                  </div>
+                </div>
               </div>
-              <p id="todoSaveMsg" class="muted small lp-err hidden" role="status"></p>
-              <p class="muted small" id="todoUpdatedAt"></p>
+
+              <div class="todo-detail-panel hidden card pad-sm" id="todoDetailPanel">
+                <div class="todo-detail-head">
+                  <h3 class="h3" id="todoDetailTitle">—</h3>
+                  <button type="button" class="btn btn-ghost btn-sm" id="todoDetailDismiss" aria-label="关闭">×</button>
+                </div>
+                <div id="todoDetailBody"></div>
+              </div>
+
+              <div class="todo-add-section">
+                <h2 class="h3">添加待办</h2>
+                <div class="cal-form-grid">
+                  <label class="lp-field">
+                    <span class="lp-label">名称</span>
+                    <input type="text" class="input" id="todoFormName" placeholder="如：整理夏令营材料" maxlength="80" />
+                  </label>
+                  <label class="lp-field">
+                    <span class="lp-label">重要程度（象限）</span>
+                    <select class="input" id="todoFormQuadrant">
+                      <option value="I">I 级 · 重要且紧急</option>
+                      <option value="II" selected>II 级 · 重要不紧急</option>
+                      <option value="III">III 级 · 紧急不重要</option>
+                      <option value="IV">IV 级 · 不重要不紧急</option>
+                    </select>
+                  </label>
+                  <label class="lp-field">
+                    <span class="lp-label">日期（选填）</span>
+                    <input type="date" class="input" id="todoFormDate" />
+                  </label>
+                  <label class="lp-field lp-span2">
+                    <span class="lp-label">细节（选填）</span>
+                    <textarea class="input" id="todoFormDetails" rows="2" maxlength="500" placeholder="补充说明、步骤或备注"></textarea>
+                  </label>
+                </div>
+                <button type="button" class="btn btn-secondary" id="todoAddBtn">添加到矩阵</button>
+              </div>
             </div>
-          </aside>
-        </div>
+
+            <aside class="todo-sidebar">
+              <div class="card card-elevated pad-lg">
+                <h2 class="h3">我的待办列表</h2>
+                <p class="muted small">按 I → IV 重要程度排序；修改后会自动保存到当前账户。</p>
+                <div id="todoList" class="todo-list"></div>
+                <div class="row-actions">
+                  <button type="button" class="btn btn-primary" id="todoSaveBtn">保存待办</button>
+                </div>
+                <p id="todoSaveMsg" class="muted small lp-err hidden" role="status"></p>
+                <p class="muted small" id="todoUpdatedAt"></p>
+              </div>
+            </aside>
+          </div>
+        </section>
       </section>
 
       <!-- User profile -->
@@ -719,8 +715,6 @@
                 <input type="text" class="input" name="english_toefl" data-profile /></label>
               <label class="lp-field"><span class="lp-label">六级</span>
                 <input type="text" class="input" name="english_cet6" data-profile /></label>
-              <label class="lp-field lp-span2"><span class="lp-label">地域偏好</span>
-                <input type="text" class="input" name="region_preference" data-profile placeholder="如：京津冀 / 不限" /></label>
             </div>
           </div>
 
@@ -784,7 +778,7 @@
 
   <script src="/web/session.js?v=auth-2"></script>
   <script src="/web/study-calendar.js?v=20260607-2"></script>
-  <script src="/web/todo-matrix.js?v=20260607-1"></script>
-  <script src="/web/app.js?v=20260529-evidence-review-1"></script>
+  <script src="/web/todo-matrix.js?v=20260611-calendar-todo-1"></script>
+  <script src="/web/app.js?v=20260611-calendar-todo-1"></script>
 </body>
 </html>

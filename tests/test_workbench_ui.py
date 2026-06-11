@@ -59,6 +59,7 @@ def test_dated_todos_are_rendered_on_calendar() -> None:
     assert "function todosForDate" in calendar_js
     assert 'apiFetch("/api/auth/todos")' in calendar_js
     assert "cal-todo-chip" in calendar_js
+    assert 'id="todoMatrix"' in _read("web/index.html")
 
 
 def test_calendar_nav_is_first_and_non_evidence_views_expand() -> None:
@@ -73,3 +74,54 @@ def test_calendar_nav_is_first_and_non_evidence_views_expand() -> None:
     assert ".app.evidence-hidden .view" in css
     assert "max-width: none" in css
     assert ".app.evidence-hidden .view-long .lp-form-grid" in css
+
+
+def test_long_plan_optional_fields_are_unified_without_region_preference() -> None:
+    html = _read("web/index.html")
+    app_js = _read("web/app.js")
+
+    long_start = html.index('id="viewLong"')
+    long_end = html.index('id="longUseWeb"', long_start)
+    long_optional = html[long_start:long_end]
+
+    assert "保研院校地域偏好" not in long_optional
+    assert 'name="region_preference" data-lp-opt' not in long_optional
+    for label in [
+        "科研与竞赛",
+        "实习经历",
+        "学生工作、社团",
+        "未来 3～5 年路径倾向",
+        "期望岗位或行业",
+        "夏令营 / 预推免 准备进度",
+        "当前最大顾虑或短板",
+        "备注",
+    ]:
+        assert label in long_optional
+    assert "region_preference: p.region_preference" not in app_js
+
+
+def test_todos_are_integrated_into_calendar_not_sidebar_nav() -> None:
+    html = _read("web/index.html")
+    app_js = _read("web/app.js")
+
+    nav_start = html.index('<nav class="sidebar-nav"')
+    nav_end = html.index("</nav>", nav_start)
+    nav_html = html[nav_start:nav_end]
+    calendar_start = html.index('id="viewCalendar"')
+    calendar_end = html.index('id="viewProfile"', calendar_start)
+    calendar_html = html[calendar_start:calendar_end]
+
+    assert 'data-view="todos"' not in nav_html
+    assert "创新待办矩阵" in calendar_html
+    assert 'id="todoMatrix"' in calendar_html
+    assert 'todos: document.getElementById("viewTodos")' not in app_js
+    assert 'viewId === "todos"' not in app_js
+
+
+def test_long_plan_calendar_sync_uses_timeline_windows_not_day_offsets() -> None:
+    app_js = _read("web/app.js")
+
+    assert "function timelineDateForItem" in app_js
+    assert "function parseTimelineWindowDate" in app_js
+    assert "deadline_or_window" in app_js
+    assert "dateKeyFromDateObj(addDays(now, idx))" not in app_js
