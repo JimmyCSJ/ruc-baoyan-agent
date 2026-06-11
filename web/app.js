@@ -23,9 +23,20 @@ const longReportPreview = document.getElementById("longReportPreview");
 const longReportPlaceholder = document.getElementById("longReportPlaceholder");
 const longReportJson = document.getElementById("longReportJson");
 const longPlanErr = document.getElementById("longPlanErr");
+const btnPlanToCalendar = document.getElementById("btnPlanToCalendar");
+const btnPlanToTodos = document.getElementById("btnPlanToTodos");
+const wbTodayList = document.getElementById("wbTodayList");
+const wbWeekList = document.getElementById("wbWeekList");
+const wbRefreshBtn = document.getElementById("wbRefreshBtn");
+const wbQuickAskBtn = document.getElementById("wbQuickAskBtn");
+const wbExamBtn = document.getElementById("wbExamBtn");
+const wbInterviewBtn = document.getElementById("wbInterviewBtn");
+const wbProfileNudge = document.getElementById("wbProfileNudge");
+const btnWorkbenchProfile = document.getElementById("btnWorkbenchProfile");
 
 let lastLongPlanPayload = null;
 let lastLongPlanReport = null;
+let currentProfile = null;
 /** 最近一次生成成功的原始 Markdown，用于 PDF 直连转换（避免重复调用模型） */
 let lastLongPlanMarkdown = "";
 let lastLongPlanHtmlUrl = "";
@@ -94,6 +105,8 @@ const views = {
   exam: document.getElementById("viewExam"),
   interview: document.getElementById("viewInterview"),
   long: document.getElementById("viewLong"),
+  calendar: document.getElementById("viewCalendar"),
+  todos: document.getElementById("viewTodos"),
   profile: document.getElementById("viewProfile"),
 };
 
@@ -888,6 +901,123 @@ async function downloadAnswerPdf() {
   }
 }
 
+function padDatePart(n) {
+  return String(n).padStart(2, "0");
+}
+
+function dateKeyFromDateObj(date) {
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function mondayFirstWeekday(date) {
+  return (date.getDay() + 6) % 7;
+}
+
+function dateFromKey(key) {
+  const [y, m, d] = String(key || "").split("-").map(Number);
+  return new Date(y || 1970, (m || 1) - 1, d || 1);
+}
+
+function calendarPlanAppliesOnDate(plan, key) {
+  if (!plan || !key) return false;
+  if (plan.type === "once") return plan.date === key;
+  if (plan.type !== "recurring") return false;
+  if (key < plan.start_date || key > plan.end_date) return false;
+  const wd = mondayFirstWeekday(dateFromKey(key));
+  return Array.isArray(plan.weekdays) && plan.weekdays.includes(wd);
+}
+
+function todoAppliesOnDate(todo, key) {
+  return Boolean(todo && todo.date && todo.date === key);
+}
+
+function profileIsIncomplete(profile) {
+  const p = profile || {};
+  const keys = ["current_school", "grade_year", "college", "major", "target_school", "target_college"];
+  return keys.some((k) => !String(p[k] || "").trim());
+}
+
+function workbenchItemHtml(item) {
+  const meta = [item.date, item.kind].filter(Boolean).join(" · ");
+  return `
+    <article class="workbench-item">
+      <span class="badge ${item.kind === "待办" ? "badge-exp" : "badge-neutral"}">${escapeHtml(item.kind)}</span>
+      <div class="workbench-item-body">
+        <strong>${escapeHtml(item.title)}</strong>
+        ${meta ? `<p class="muted small">${escapeHtml(meta)}</p>` : ""}
+      </div>
+    </article>`;
+}
+
+function renderWorkbenchList(el, items, emptyText) {
+  if (!el) return;
+  if (!items.length) {
+    el.innerHTML = `<p class="muted small">${escapeHtml(emptyText)}</p>`;
+    return;
+  }
+  el.innerHTML = items.slice(0, 8).map(workbenchItemHtml).join("");
+}
+
+async function renderTodayWorkbench() {
+  if (!wbTodayList || !wbWeekList) return;
+  wbTodayList.innerHTML = '<p class="muted small">正在读取今日安排…</p>';
+  wbWeekList.innerHTML = '<p class="muted small">正在读取本周安排…</p>';
+
+  try {
+    const [calendarRes, todosRes] = await Promise.all([
+      apiFetch("/api/auth/study-calendar"),
+      apiFetch("/api/auth/todos"),
+    ]);
+    if (!calendarRes.ok) throw new Error(await calendarRes.text());
+    if (!todosRes.ok) throw new Error(await todosRes.text());
+    const calendarData = await calendarRes.json();
+    const todosData = await todosRes.json();
+    const plans = Array.isArray(calendarData.plans) ? calendarData.plans : [];
+    const todos = Array.isArray(todosData.items) ? todosData.items : [];
+    const today = new Date();
+    const todayKey = dateKeyFromDateObj(today);
+    const monday = addDays(today, -mondayFirstWeekday(today));
+    const sunday = addDays(monday, 6);
+    const weekStart = dateKeyFromDateObj(monday);
+    const weekEnd = dateKeyFromDateObj(sunday);
+
+    const todayItems = [
+      ...plans
+        .filter((p) => calendarPlanAppliesOnDate(p, todayKey))
+        .map((p) => ({ kind: "日历", title: p.title || "学习计划", date: todayKey })),
+      ...todos
+        .filter((t) => todoAppliesOnDate(t, todayKey))
+        .map((t) => ({ kind: "待办", title: t.name || "待办事项", date: todayKey })),
+    ];
+
+    const weekItems = [];
+    for (let i = 0; i < 7; i += 1) {
+      const key = dateKeyFromDateObj(addDays(monday, i));
+      plans
+        .filter((p) => calendarPlanAppliesOnDate(p, key))
+        .forEach((p) => weekItems.push({ kind: "日历", title: p.title || "学习计划", date: key }));
+      todos
+        .filter((t) => todoAppliesOnDate(t, key))
+        .forEach((t) => weekItems.push({ kind: "待办", title: t.name || "待办事项", date: key }));
+    }
+
+    renderWorkbenchList(wbTodayList, todayItems, "今天暂无安排。可以先添加一个学习计划，或进入快问快答确认下一步。");
+    renderWorkbenchList(wbWeekList, weekItems, `${weekStart} 至 ${weekEnd} 暂无安排。建议先生成长程规划，再拆成待办。`);
+  } catch (e) {
+    const msg = e && e.message ? e.message : String(e);
+    wbTodayList.innerHTML = `<p class="muted small">读取今日安排失败：${escapeHtml(msg)}</p>`;
+    wbWeekList.innerHTML = '<p class="muted small">暂时无法读取本周安排。</p>';
+  }
+
+  wbProfileNudge?.classList.toggle("hidden", !profileIsIncomplete(currentProfile));
+}
+
 function setActiveView(viewId) {
   navButtons.forEach((btn) => {
     btn.classList.toggle("active", btn.getAttribute("data-view") === viewId);
@@ -901,6 +1031,13 @@ function setActiveView(viewId) {
   evidencePanel?.classList.toggle("hidden", !showEvidence);
   if (viewId === "profile") {
     loadUserProfile().catch(() => {});
+  }
+  if (viewId === "calendar" && typeof window.initStudyCalendar === "function") {
+    window.initStudyCalendar().catch(() => {});
+    renderTodayWorkbench().catch(() => {});
+  }
+  if (viewId === "todos" && typeof window.initTodoMatrix === "function") {
+    window.initTodoMatrix().catch(() => {});
   }
 }
 
@@ -975,6 +1112,7 @@ async function loadUserProfile() {
   const res = await apiFetch("/api/auth/profile");
   if (!res.ok) throw new Error("加载个人信息失败");
   const profile = await res.json();
+  currentProfile = profile;
   fillProfileForm(profile);
   return profile;
 }
@@ -990,6 +1128,7 @@ async function saveUserProfile() {
     const detail = data.detail;
     throw new Error(typeof detail === "string" ? detail : "保存失败");
   }
+  currentProfile = data;
   fillProfileForm(data);
   if (profileSaveMsg) {
     profileSaveMsg.textContent = "已保存";
@@ -1012,6 +1151,20 @@ async function ensureAuthenticated() {
   } catch {
     /* profile may be empty on first visit */
   }
+  if (typeof window.preloadStudyCalendar === "function") {
+    try {
+      await window.preloadStudyCalendar();
+    } catch {
+      /* calendar may be empty on first visit */
+    }
+  }
+  if (typeof window.preloadTodoMatrix === "function") {
+    try {
+      await window.preloadTodoMatrix();
+    } catch {
+      /* todos may be empty on first visit */
+    }
+  }
   return true;
 }
 
@@ -1021,6 +1174,35 @@ navButtons.forEach((btn) => {
     if (v) setActiveView(v);
   });
 });
+window.setActiveWorkbenchView = setActiveView;
+
+if (wbRefreshBtn) {
+  wbRefreshBtn.addEventListener("click", () => {
+    renderTodayWorkbench().catch(() => {});
+  });
+}
+if (wbQuickAskBtn) {
+  wbQuickAskBtn.addEventListener("click", () => {
+    setActiveView("quick");
+    queryInput?.focus();
+  });
+}
+if (wbExamBtn) {
+  wbExamBtn.addEventListener("click", () => {
+    setActiveView("exam");
+    examQueryInput?.focus();
+  });
+}
+if (wbInterviewBtn) {
+  wbInterviewBtn.addEventListener("click", () => {
+    setActiveView("interview");
+  });
+}
+if (btnWorkbenchProfile) {
+  btnWorkbenchProfile.addEventListener("click", () => {
+    setActiveView("profile");
+  });
+}
 
 document.querySelectorAll("[data-copy-target]").forEach((btn) => {
   btn.addEventListener("click", async () => {
@@ -1388,6 +1570,7 @@ async function runLongPlanReport() {
   if (triggerBtn) triggerBtn.disabled = true;
   if (htmlBtn) htmlBtn.disabled = true;
   if (dlBtn) dlBtn.disabled = true;
+  setLongPlanActionButtons(false);
 
   // Show progress bar, hide placeholder and preview
   if (longPlanProgress) longPlanProgress.style.display = "block";
@@ -1514,6 +1697,7 @@ async function runLongPlanReport() {
     if (longReportPlaceholder) longReportPlaceholder.classList.add("hidden");
     if (htmlBtn) htmlBtn.disabled = !lastLongPlanHtmlUrl;
     if (dlBtn) dlBtn.disabled = !(lastLongPlanHtmlUrl || lastLongPlanMarkdown || lastLongPlanReport);
+    setLongPlanActionButtons(Boolean(lastLongPlanReport));
   } catch (e) {
     if (longPlanProgress) longPlanProgress.style.display = "none";
     if (longPlanErr) {
@@ -1532,6 +1716,7 @@ async function runLongPlanReport() {
     if (hb) hb.disabled = !lastLongPlanHtmlUrl;
     const db = document.getElementById("btnDownloadHtml");
     if (db) db.disabled = !(lastLongPlanHtmlUrl || lastLongPlanMarkdown || lastLongPlanReport);
+    setLongPlanActionButtons(Boolean(lastLongPlanReport));
   }
 }
 
@@ -1584,6 +1769,146 @@ async function downloadLongPlanHtmlReport() {
     }
   } finally {
     if (dlBtn) dlBtn.disabled = !(lastLongPlanHtmlUrl || lastLongPlanMarkdown || lastLongPlanReport);
+  }
+}
+
+function setLongPlanActionButtons(enabled) {
+  if (btnPlanToCalendar) btnPlanToCalendar.disabled = !enabled;
+  if (btnPlanToTodos) btnPlanToTodos.disabled = !enabled;
+}
+
+function collectLongPlanActionTexts() {
+  const report = lastLongPlanReport || {};
+  const out = [];
+  (Array.isArray(report.action_guidelines) ? report.action_guidelines : []).forEach((x) => {
+    const s = String(x || "").trim();
+    if (s) out.push(s);
+  });
+  (Array.isArray(report.timeline) ? report.timeline : []).forEach((block) => {
+    if (!block || typeof block !== "object") return;
+    const title = String(block.title || "").trim();
+    const tasks = String(block.core_tasks || "").trim();
+    const bucket = String(block.bucket || "").trim();
+    const windowText = String(block.deadline_or_window || "").trim();
+    const text = [bucket, title, tasks].filter(Boolean).join("：");
+    if (text) out.push([text, windowText].filter(Boolean).join(" · "));
+  });
+  (Array.isArray(report.positioning_by_program) ? report.positioning_by_program : []).forEach((item) => {
+    if (!item || typeof item !== "object") return;
+    const program = String(item.program_key_or_name || "").trim();
+    const action = String(item.next_action || "").trim();
+    if (action) out.push(program ? `${program}：${action}` : action);
+  });
+  return Array.from(new Set(out)).slice(0, 12);
+}
+
+function longPlanGeneratedGuard() {
+  if (lastLongPlanReport && typeof lastLongPlanReport === "object") return true;
+  if (longPlanErr) {
+    longPlanErr.textContent = "请先生成规划报告，再加入日历或待办。";
+    longPlanErr.classList.remove("hidden");
+  }
+  return false;
+}
+
+async function addLongPlanToCalendar() {
+  if (!longPlanGeneratedGuard()) return;
+  const actions = collectLongPlanActionTexts();
+  if (!actions.length) {
+    if (longPlanErr) {
+      longPlanErr.textContent = "报告里没有可拆分的行动项。";
+      longPlanErr.classList.remove("hidden");
+    }
+    return;
+  }
+  if (btnPlanToCalendar) btnPlanToCalendar.disabled = true;
+  try {
+    const res = await apiFetch("/api/auth/study-calendar");
+    const data = await parseJsonResponse(res);
+    if (!res.ok) throw new Error(data.detail || "读取学习日历失败");
+    const plans = Array.isArray(data.plans) ? data.plans : [];
+    const completions = data.completions && typeof data.completions === "object" ? data.completions : {};
+    const now = new Date();
+    const createdAt = now.toISOString();
+    const newPlans = actions.slice(0, 8).map((text, idx) => ({
+      id: `lp_${Date.now().toString(36)}_${idx}`,
+      title: text.slice(0, 80),
+      color: "#2563eb",
+      type: "once",
+      date: dateKeyFromDateObj(addDays(now, idx)),
+      note: "来自长程规划报告",
+      created_at: createdAt,
+    }));
+    const saveRes = await apiFetch("/api/auth/study-calendar", {
+      method: "PUT",
+      body: JSON.stringify({ plans: [...plans, ...newPlans], completions }),
+    });
+    const saved = await parseJsonResponse(saveRes);
+    if (!saveRes.ok) throw new Error(saved.detail || "保存学习日历失败");
+    if (longPlanErr) {
+      longPlanErr.textContent = `已加入学习日历：${newPlans.length} 项`;
+      longPlanErr.classList.remove("hidden");
+      longPlanErr.classList.add("ok");
+    }
+    if (typeof window.reloadStudyCalendar === "function") await window.reloadStudyCalendar();
+    await renderTodayWorkbench();
+  } catch (e) {
+    if (longPlanErr) {
+      longPlanErr.textContent = `加入学习日历失败：${e.message || e}`;
+      longPlanErr.classList.remove("hidden", "ok");
+    }
+  } finally {
+    if (btnPlanToCalendar) btnPlanToCalendar.disabled = false;
+  }
+}
+
+async function addLongPlanToTodos() {
+  if (!longPlanGeneratedGuard()) return;
+  const actions = collectLongPlanActionTexts();
+  if (!actions.length) {
+    if (longPlanErr) {
+      longPlanErr.textContent = "报告里没有可拆分的行动项。";
+      longPlanErr.classList.remove("hidden");
+    }
+    return;
+  }
+  if (btnPlanToTodos) btnPlanToTodos.disabled = true;
+  try {
+    const res = await apiFetch("/api/auth/todos");
+    const data = await parseJsonResponse(res);
+    if (!res.ok) throw new Error(data.detail || "读取待办失败");
+    const items = Array.isArray(data.items) ? data.items : [];
+    const now = new Date();
+    const createdAt = now.toISOString();
+    const newItems = actions.slice(0, 10).map((text, idx) => ({
+      id: `lt_${Date.now().toString(36)}_${idx}`,
+      name: text.slice(0, 80),
+      details: "来自长程规划报告",
+      date: dateKeyFromDateObj(addDays(now, idx)),
+      quadrant: idx < 3 ? "I" : "II",
+      created_at: createdAt,
+    }));
+    const saveRes = await apiFetch("/api/auth/todos", {
+      method: "PUT",
+      body: JSON.stringify({ items: [...items, ...newItems] }),
+    });
+    const saved = await parseJsonResponse(saveRes);
+    if (!saveRes.ok) throw new Error(saved.detail || "保存待办失败");
+    if (longPlanErr) {
+      longPlanErr.textContent = `已拆成待办：${newItems.length} 项`;
+      longPlanErr.classList.remove("hidden");
+      longPlanErr.classList.add("ok");
+    }
+    if (typeof window.reloadTodoMatrix === "function") await window.reloadTodoMatrix();
+    if (typeof window.reloadStudyCalendar === "function") await window.reloadStudyCalendar();
+    await renderTodayWorkbench();
+  } catch (e) {
+    if (longPlanErr) {
+      longPlanErr.textContent = `拆成待办失败：${e.message || e}`;
+      longPlanErr.classList.remove("hidden", "ok");
+    }
+  } finally {
+    if (btnPlanToTodos) btnPlanToTodos.disabled = false;
   }
 }
 
@@ -1677,11 +2002,13 @@ async function openLongPlanHtmlReport() {
   root.addEventListener("click", (e) => {
     const start = eventTargetElement(e);
     if (!start) return;
-    const btn = start.closest("#btnReport, #btnReportHtml, #btnDownloadHtml");
+    const btn = start.closest("#btnReport, #btnReportHtml, #btnDownloadHtml, #btnPlanToCalendar, #btnPlanToTodos");
     if (!btn || !root.contains(btn)) return;
     e.preventDefault();
     if (btn.id === "btnReport") void runLongPlanReport();
     else if (btn.id === "btnReportHtml") void openLongPlanHtmlReport();
+    else if (btn.id === "btnPlanToCalendar") void addLongPlanToCalendar();
+    else if (btn.id === "btnPlanToTodos") void addLongPlanToTodos();
     else void downloadLongPlanHtmlReport();
   });
 })();
@@ -1885,7 +2212,7 @@ ensureAuthenticated().then((ok) => {
   if (!ok) return;
   renderFaqChips();
   renderExamFaqChips();
-  setActiveView("quick");
+  setActiveView("calendar");
 });
 
 // Wire quick Q&A PDF download button

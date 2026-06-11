@@ -22,7 +22,11 @@
       </div>
 
       <nav class="sidebar-nav" role="navigation">
-        <button type="button" class="nav-item active" data-view="quick" id="navQuick">
+        <button type="button" class="nav-item active" data-view="calendar" id="navCalendar">
+          <span class="nav-icon" aria-hidden="true">▦</span>
+          <span class="nav-label">学习日历</span>
+        </button>
+        <button type="button" class="nav-item" data-view="quick" id="navQuick">
           <span class="nav-icon" aria-hidden="true">◇</span>
           <span class="nav-label">快问快答</span>
         </button>
@@ -37,6 +41,10 @@
         <button type="button" class="nav-item" data-view="interview" id="navInterview">
           <span class="nav-icon" aria-hidden="true">◉</span>
           <span class="nav-label">面试辅导</span>
+        </button>
+        <button type="button" class="nav-item" data-view="todos" id="navTodos">
+          <span class="nav-icon" aria-hidden="true">☑</span>
+          <span class="nav-label">待办事项</span>
         </button>
         <button type="button" class="nav-item" data-view="profile" id="navProfile">
           <span class="nav-icon" aria-hidden="true">☺</span>
@@ -57,7 +65,7 @@
 
     <main class="main" id="mainPanel">
       <!-- Quick Chat -->
-      <section class="view view-quick" id="viewQuick" data-view-panel="quick">
+      <section class="view view-quick hidden" id="viewQuick" data-view-panel="quick">
         <div class="main-header">
           <p class="workspace-tag">工作台 · 问答与证据对齐</p>
           <h1 class="page-title">快问快答</h1>
@@ -389,6 +397,8 @@
               <button type="button" id="btnReport" class="btn btn-primary">生成规划报告</button>
               <button type="button" id="btnReportHtml" class="btn btn-secondary" disabled>打开 HTML 报告</button>
               <button type="button" id="btnDownloadHtml" class="btn btn-secondary" disabled>下载 HTML 报告</button>
+              <button type="button" id="btnPlanToCalendar" class="btn btn-secondary" disabled>加入学习日历</button>
+              <button type="button" id="btnPlanToTodos" class="btn btn-secondary" disabled>拆成待办</button>
             </div>
             <p id="longPlanErr" class="muted small lp-err hidden" role="alert"></p>
           </div>
@@ -411,6 +421,244 @@
               <pre id="longReportJson" class="report-pre">（尚未生成）</pre>
             </details>
           </div>
+        </div>
+      </section>
+
+      <!-- Study calendar -->
+      <section class="view view-calendar" id="viewCalendar" data-view-panel="calendar">
+        <div class="main-header">
+          <p class="workspace-tag">首页 · 今日推进</p>
+          <h1 class="page-title">今日工作台</h1>
+          <p class="page-desc">
+            先看今天要推进什么，再进入月历、问答、笔试辅导和面试辅导。月历仍保留在下方，方便安排长期节奏。
+          </p>
+        </div>
+
+        <section class="workbench-grid" aria-label="今日工作台">
+          <article class="workbench-card card card-elevated pad-lg">
+            <div class="workbench-card-head">
+              <div>
+                <p class="eyebrow">今天</p>
+                <h2 class="h3">今日安排</h2>
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm" id="wbRefreshBtn">刷新</button>
+            </div>
+            <div id="wbTodayList" class="workbench-list">
+              <p class="muted small">正在读取今日安排…</p>
+            </div>
+          </article>
+
+          <article class="workbench-card card card-elevated pad-lg">
+            <div class="workbench-card-head">
+              <div>
+                <p class="eyebrow">本周</p>
+                <h2 class="h3">本周重点</h2>
+              </div>
+            </div>
+            <div id="wbWeekList" class="workbench-list">
+              <p class="muted small">正在读取本周安排…</p>
+            </div>
+          </article>
+
+          <article class="workbench-card card card-elevated pad-lg">
+            <p class="eyebrow">快捷入口</p>
+            <h2 class="h3">下一步动作</h2>
+            <div class="workbench-actions">
+              <button type="button" class="btn btn-primary" id="wbQuickAskBtn">快问快答</button>
+              <button type="button" class="btn btn-secondary" id="wbExamBtn">笔试辅导</button>
+              <button type="button" class="btn btn-secondary" id="wbInterviewBtn">面试辅导</button>
+            </div>
+            <div class="workbench-nudge hidden" id="wbProfileNudge">
+              <p class="muted small">个人信息还不完整，完善后长程规划会更贴合你的背景。</p>
+              <button type="button" class="btn btn-ghost btn-sm" id="btnWorkbenchProfile">完善个人信息</button>
+            </div>
+          </article>
+        </section>
+
+        <div class="cal-layout">
+          <div class="cal-main card card-elevated pad-lg">
+            <div class="section-head-inline">
+              <div>
+                <p class="eyebrow">月历</p>
+                <h2 class="h3">学习日历</h2>
+              </div>
+            </div>
+            <div class="cal-toolbar">
+              <div class="cal-toolbar-left">
+                <button type="button" class="btn btn-secondary btn-sm" id="calPrevMonth" aria-label="上一月">‹</button>
+                <h2 class="cal-month-label" id="calMonthLabel">—</h2>
+                <button type="button" class="btn btn-secondary btn-sm" id="calNextMonth" aria-label="下一月">›</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="calToday">今天</button>
+              </div>
+              <label class="cal-year-select">
+                <span class="sr-only">选择年份</span>
+                <select class="input" id="calYearSelect"></select>
+              </label>
+            </div>
+            <div class="cal-grid" id="calGrid" role="grid" aria-label="月历"></div>
+            <div class="cal-day-panel hidden" id="calDayPanel">
+              <div class="cal-day-panel-head">
+                <h3 class="h3" id="calDayPanelTitle">—</h3>
+                <button type="button" class="btn btn-ghost btn-sm" id="calAddPlanForDay">添加当天单次计划</button>
+              </div>
+              <div id="calDayPlanList"></div>
+            </div>
+
+            <div class="cal-add-section">
+              <h2 class="h3">添加计划</h2>
+              <div class="cal-form">
+                <div class="cal-form-grid">
+                  <label class="lp-field">
+                    <span class="lp-label">计划名称</span>
+                    <input type="text" class="input" id="calPlanTitle" placeholder="如：学习英语、刷专业课" maxlength="80" />
+                  </label>
+                  <label class="lp-field">
+                    <span class="lp-label">类型</span>
+                    <select class="input" id="calPlanType">
+                      <option value="recurring">重复（每周固定日）</option>
+                      <option value="once">单次（指定日期）</option>
+                    </select>
+                  </label>
+                  <label class="lp-field">
+                    <span class="lp-label">颜色</span>
+                    <select class="input" id="calPlanColor">
+                      <option value="#2563eb">蓝色</option>
+                      <option value="#16a34a">绿色</option>
+                      <option value="#d97706">橙色</option>
+                      <option value="#dc2626">红色</option>
+                      <option value="#7c3aed">紫色</option>
+                      <option value="#0891b2">青色</option>
+                      <option value="#db2777">粉色</option>
+                    </select>
+                  </label>
+                </div>
+                <div id="calRecurringFields">
+                  <span class="lp-label">重复星期</span>
+                  <div class="cal-weekday-checks" id="calPlanWeekdays">
+                    <label class="lp-check"><input type="checkbox" value="0" />周一</label>
+                    <label class="lp-check"><input type="checkbox" value="1" />周二</label>
+                    <label class="lp-check"><input type="checkbox" value="2" />周三</label>
+                    <label class="lp-check"><input type="checkbox" value="3" />周四</label>
+                    <label class="lp-check"><input type="checkbox" value="4" />周五</label>
+                    <label class="lp-check"><input type="checkbox" value="5" />周六</label>
+                    <label class="lp-check"><input type="checkbox" value="6" />周日</label>
+                  </div>
+                  <div class="cal-form-grid">
+                    <label class="lp-field">
+                      <span class="lp-label">开始日期</span>
+                      <input type="date" class="input" id="calPlanStartDate" min="2020-01-01" max="2035-12-31" />
+                    </label>
+                    <label class="lp-field">
+                      <span class="lp-label">结束日期</span>
+                      <input type="date" class="input" id="calPlanEndDate" min="2020-01-01" max="2035-12-31" />
+                    </label>
+                  </div>
+                </div>
+                <div id="calOnceFields" class="hidden">
+                  <label class="lp-field">
+                    <span class="lp-label">日期</span>
+                    <input type="date" class="input" id="calPlanOnceDate" min="2020-01-01" max="2035-12-31" />
+                  </label>
+                </div>
+                <label class="lp-field">
+                  <span class="lp-label">备注（选填）</span>
+                  <textarea class="input" id="calPlanNote" rows="2" maxlength="500" placeholder="如：背单词 30 分钟"></textarea>
+                </label>
+                <button type="button" class="btn btn-secondary" id="calAddPlan">添加到列表</button>
+              </div>
+            </div>
+          </div>
+
+          <aside class="cal-sidebar">
+            <div class="card card-elevated pad-lg">
+              <h2 class="h3">我的学习计划</h2>
+              <p class="muted small">计划会自动保存到当前账户，下次登录仍可查看。</p>
+              <div id="calPlanList" class="cal-plan-list"></div>
+              <div class="row-actions">
+                <button type="button" class="btn btn-primary" id="calSavePlans">保存计划</button>
+              </div>
+              <p id="calSaveMsg" class="muted small lp-err hidden" role="status"></p>
+              <p class="muted small" id="calUpdatedAt"></p>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- Todo matrix -->
+      <section class="view view-todos hidden" id="viewTodos" data-view-panel="todos">
+        <div class="main-header">
+          <p class="workspace-tag">规划 · 优先级管理</p>
+          <h1 class="page-title">待办事项</h1>
+          <p class="page-desc">
+            四象限矩阵按重要程度划分待办（I 级最重要，IV 级最低）。坐标系中仅展示名称，点击可查看细节；数据按账户保存，下次登录仍可查看。
+          </p>
+        </div>
+
+        <div class="todo-layout">
+          <div class="todo-main card card-elevated pad-lg">
+            <div class="todo-matrix-wrap" aria-label="待办四象限矩阵">
+              <div class="todo-axis todo-axis-y">
+                <span class="todo-axis-label todo-axis-top">重要 ↑</span>
+                <span class="todo-axis-label todo-axis-bottom">↓ 不重要</span>
+              </div>
+              <div class="todo-matrix-center">
+                <div class="todo-matrix" id="todoMatrix"></div>
+                <div class="todo-axis todo-axis-x">
+                  <span class="todo-axis-label">← 不紧急</span>
+                  <span class="todo-axis-label">紧急 →</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="todo-detail-panel hidden card pad-sm" id="todoDetailPanel">
+              <div class="todo-detail-head">
+                <h3 class="h3" id="todoDetailTitle">—</h3>
+                <button type="button" class="btn btn-ghost btn-sm" id="todoDetailDismiss" aria-label="关闭">×</button>
+              </div>
+              <div id="todoDetailBody"></div>
+            </div>
+
+            <div class="todo-add-section">
+              <h2 class="h3">添加待办</h2>
+              <div class="cal-form-grid">
+                <label class="lp-field">
+                  <span class="lp-label">名称</span>
+                  <input type="text" class="input" id="todoFormName" placeholder="如：整理夏令营材料" maxlength="80" />
+                </label>
+                <label class="lp-field">
+                  <span class="lp-label">重要程度（象限）</span>
+                  <select class="input" id="todoFormQuadrant">
+                    <option value="I">I 级 · 重要且紧急</option>
+                    <option value="II" selected>II 级 · 重要不紧急</option>
+                    <option value="III">III 级 · 紧急不重要</option>
+                    <option value="IV">IV 级 · 不重要不紧急</option>
+                  </select>
+                </label>
+                <label class="lp-field">
+                  <span class="lp-label">日期（选填）</span>
+                  <input type="date" class="input" id="todoFormDate" />
+                </label>
+                <label class="lp-field lp-span2">
+                  <span class="lp-label">细节（选填）</span>
+                  <textarea class="input" id="todoFormDetails" rows="2" maxlength="500" placeholder="补充说明、步骤或备注"></textarea>
+                </label>
+              </div>
+              <button type="button" class="btn btn-secondary" id="todoAddBtn">添加到矩阵</button>
+            </div>
+          </div>
+
+          <aside class="todo-sidebar">
+            <div class="card card-elevated pad-lg">
+              <h2 class="h3">我的待办列表</h2>
+              <p class="muted small">按 I → IV 重要程度排序；修改后会自动保存到当前账户。</p>
+              <div id="todoList" class="todo-list"></div>
+              <div class="row-actions">
+                <button type="button" class="btn btn-primary" id="todoSaveBtn">保存待办</button>
+              </div>
+              <p id="todoSaveMsg" class="muted small lp-err hidden" role="status"></p>
+              <p class="muted small" id="todoUpdatedAt"></p>
+            </div>
+          </aside>
         </div>
       </section>
 
@@ -535,6 +783,8 @@
   </div>
 
   <script src="/web/session.js?v=auth-2"></script>
+  <script src="/web/study-calendar.js?v=20260607-2"></script>
+  <script src="/web/todo-matrix.js?v=20260607-1"></script>
   <script src="/web/app.js?v=20260529-evidence-review-1"></script>
 </body>
 </html>
