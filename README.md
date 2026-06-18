@@ -24,22 +24,44 @@ User/Web
      -> generate_llm_answer / generate_mock_answer (agents/answer.py)
 ```
 
-## 目录导航（只列关键）
+## 文件夹说明
 
 ```text
 .
-├── server.py                  # FastAPI 主入口
-├── app.py                     # CLI 入口
-├── config.py                  # 环境变量设置
-├── agents/                    # 业务层：路由/检索/回答/长问答
-├── graph/                     # 编排层：状态与节点
-├── kb/                        # 知识库核心实现
-├── tools/                     # 外部能力适配（web、可信度、兼容入口）
-├── web/                       # UI
-├── tests/                     # pytest
-├── data/kb/manifest.yaml      # KB 清单
-└── data/public_info_xhs/      # 小红书经验数据源
+├── AGENTS.md                  # 给 AI 编程助手看的项目规则和架构说明
+├── README.md                  # 给人看的项目介绍、启动方式和目录说明
+├── server.py                  # 网页和接口入口，启动服务时使用
+├── app.py                     # 命令行演示入口，不启动网页也能试问答
+├── config.py                  # 读取本地配置，例如模型、联网、登录开关
+├── requirements.txt           # 项目需要安装的 Python 依赖
+├── agents/                    # 问答能力：判断问题、检索资料、生成回答、生成长报告
+├── graph/                     # 把一次问答拆成固定步骤并串起来
+├── kb/                        # 知识库：读取官方文件、小红书表格、统计资料并检索
+├── tools/                     # 辅助工具：联网搜索、可信度判断、兼容旧入口
+├── auth/                      # 本地登录、用户资料、待办和日历的保存逻辑
+├── web/                       # 前端页面、样式、登录页和本地演示报告
+├── tests/                     # 自动检查项目主要功能是否还能工作
+├── assets/                    # 生成中文 PDF 报告需要的字体
+├── data/                      # 项目自带资料和模板
+│   ├── official_documents_brochures/   # 人大 2026 招生简章 PDF
+│   ├── public_info_xhs/                # 小红书经验表格
+│   ├── public_info_manual_stats/       # 手工整理的录取统计
+│   ├── public_info_baoyan_basics/      # 保研基础知识
+│   └── *.docx                          # 简历、个人陈述、推荐信等申请模板
+└── Renmin_University_of_China_logo.svg # 报告里使用的人大校徽
 ```
+
+## 已清理和不上传的内容
+
+以下内容属于本地运行痕迹、缓存或私有数据，已经从最终项目中删除，并写入 `.gitignore`，以后不会误传：
+
+- Python 缓存、测试缓存、macOS 自动生成文件
+- `.env` 真实密钥文件
+- 本地登录账号、会话、个人资料、待办和日历数据
+- 本地向量索引和检索缓存
+- 录屏、临时报告输出、旧虚拟环境、工具临时目录
+
+本项目保留了源码、网页、测试、公开资料、申请模板、字体和说明文件。`CLAUDE.md` 与 `AGENTS.md` 内容重复，已删除；以后以 `AGENTS.md` 作为唯一的 AI 助手说明文件。
 
 ## 快速启动
 
