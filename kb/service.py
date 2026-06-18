@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from graph.state import RetrievedDoc
 from kb.baoyan_basics_md import load_baoyan_basics_md
+from kb.catalog import catalog_report
 from kb.experience_excel import load_experience_excel
 from kb.manual_stats_txt import load_manual_stats_txt
 from tools.credibility import build_credibility_fields
@@ -45,6 +46,7 @@ def rebuild_all(root: Path | None = None) -> Dict[str, Any]:
     base = root or repo_root()
     manifest = load_manifest(base)
     manifest_text = (base / "data/kb/manifest.yaml").read_text(encoding="utf-8")
+    source_catalog = catalog_report(manifest, base)
 
     # Write a deterministic brochure file catalog for LLM selection.
     write_filenames_txt(base, Path(manifest.official_documents_brochures.directory))
@@ -87,6 +89,7 @@ def rebuild_all(root: Path | None = None) -> Dict[str, Any]:
         "manual_stats_txt": manual_parse,
         "baoyan_basics_md": basics_parse,
         "official_documents_brochures": official_report,
+        "source_catalog": source_catalog,
         "hybrid_search": hybrid_status,
         "summary": {
             "official_chunks": len(official),
@@ -235,7 +238,9 @@ def get_legacy_aggregate_status(root: Path | None = None) -> Dict[str, Any]:
     """Shape expected by `/api/kb/status` and legacy tests (experience row_count + global digest)."""
     base = root or repo_root()
     off, exp, meta = REGISTRY.snapshot()
-    excel_path = str((base / load_manifest(base).public_info_xhs.excel_path).resolve())
+    manifest = load_manifest(base)
+    source_catalog = catalog_report(manifest, base)
+    excel_path = str((base / manifest.public_info_xhs.excel_path).resolve())
     if meta is None:
         return {
             "loaded": False,
@@ -247,11 +252,12 @@ def get_legacy_aggregate_status(root: Path | None = None) -> Dict[str, Any]:
             "official_chunk_count": 0,
             "experience_chunk_count": 0,
             "kb_groups": [],
+            "source_catalog": source_catalog,
         }
     pr = meta.parse_report or {}
     excel_meta = pr.get("excel") or {}
     brochures_meta = pr.get("official_documents_brochures") or {}
-    basics_path = load_manifest(base).public_info_baoyan_basics.md_path
+    basics_path = manifest.public_info_baoyan_basics.md_path
     return {
         "loaded": True,
         "row_count": len(exp),
@@ -281,7 +287,7 @@ def get_legacy_aggregate_status(root: Path | None = None) -> Dict[str, Any]:
                 "label": "公众信息库补充（手工统计 TXT）",
                 "file_kind": "txt",
                 "chunk_count": len([c for c in exp if c.kb_group == "public_info_manual_stats"]),
-                "path": str((base / load_manifest(base).public_info_manual_stats.txt_path).resolve()),
+                "path": str((base / manifest.public_info_manual_stats.txt_path).resolve()),
             },
             {
                 "kb_group": "public_info_baoyan_basics",
@@ -291,6 +297,7 @@ def get_legacy_aggregate_status(root: Path | None = None) -> Dict[str, Any]:
                 "path": str((base / basics_path).resolve()),
             },
         ],
+        "source_catalog": pr.get("source_catalog") or source_catalog,
     }
 
 
@@ -383,6 +390,7 @@ def get_inspect_snapshot(root: Path | None = None) -> Dict[str, Any]:
         "rebuild_digest": meta.rebuild_digest if meta else "",
         "warnings": list(meta.warnings) if meta else [],
         "parse_verification": dict(meta.parse_report) if meta and meta.parse_report else {},
+        "source_catalog": (meta.parse_report or {}).get("source_catalog") if meta else catalog_report(manifest, base),
         "sources": sources,
         "totals": {
             "official_chunks": len(off),

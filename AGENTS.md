@@ -46,8 +46,11 @@ The KB is an in-memory singleton (`KBRegistry` in `kb/registry.py`) with thread-
 
 - **Loading**: `kb/service.py` → `rebuild_all()` parses data sources defined in `data/kb/manifest.yaml`:
   - `official_documents_brochures/` — pre-extracted TXT from 36 official PDF 招生简章
-  - `public_info_xhs/小红书保研笔记.xlsx` — crowdsourced experience notes
+  - `data/public_info_xhs/xhs_baoyan_notes.xlsx` — crowdsourced experience notes
   - `public_info_manual_stats/ruc_2026_manual_stats.txt` — hand-compiled admission stats
+  - `public_info_baoyan_basics/baoyan_basics.md` — curated process knowledge
+
+- **Cataloging** (`kb/catalog.py`): read-only source inventory for source existence, byte size, authority rank, evidence role, and build strategy. It is surfaced through KB status/inspect responses and does not alter retrieval ranking.
 
 - **Scoring** (`kb/service.py`, `kb/hybrid_search.py`): hybrid retrieval is the default path when available (ChromaDB dense vectors + BM25 + RRF). If vector/BM25 setup fails, search falls back to lexical matching (`kb/scoring.py`) so the app remains usable.
 

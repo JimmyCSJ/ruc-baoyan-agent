@@ -7,6 +7,7 @@
 - **入口**：`server.py`（HTTP）和 `app.py`（CLI）。
 - **主链路**：`graph/nodes.py` -> `agents/router.py` -> `agents/retrieval.py` -> `agents/answer.py`。
 - **知识库核心**：`kb/`（官方 PDF 解析、Excel 解析、索引、打分、检索）。
+- **工程说明**：`docs/RAG_ENGINEERING.md`（RAG 分层、证据规则、交付清理标准）。
 - **前端**：`web/`（单页 UI）。
 - **测试**：`tests/`（检索、回答、API、可信度、KB 诊断）。
 
@@ -41,6 +42,7 @@ User/Web
 ├── auth/                      # 本地登录、用户资料、待办和日历的保存逻辑
 ├── web/                       # 前端页面、样式、登录页和本地演示报告
 ├── tests/                     # 自动检查项目主要功能是否还能工作
+├── docs/                      # 工程说明和后续扩展文档
 ├── assets/                    # 生成中文 PDF 报告需要的字体
 ├── data/                      # 项目自带资料和模板
 │   ├── official_documents_brochures/   # 人大 2026 招生简章 PDF
