@@ -1,0 +1,20 @@
+# Deterministic knowledge-base manifest (paths relative to repository root).
+version: 2
+
+# 官方数据库：已导入的招生简章 TXT（预处理后文本）
+official_documents_brochures:
+  directory: data/official_documents_brochures
+
+# 公共信息库：小红书笔记 Excel（已移动到 data/public_info_xhs）
+public_info_xhs:
+  excel_path: data/public_info_xhs/xhs_baoyan_notes.xlsx
+  sheet: 0
+
+# 公共信息库补充：手工整理的各学院录取与专业结构统计（TXT）
+public_info_manual_stats:
+  txt_path: data/public_info_manual_stats/ruc_2026_manual_stats.txt
+
+public_info_baoyan_basics:
+  md_path: data/public_info_baoyan_basics/baoyan_basics.md
+
+# force_rebuild

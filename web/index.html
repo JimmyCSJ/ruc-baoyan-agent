@@ -1,0 +1,783 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>中国人民大学 · 保研工作台</title>
+  <link rel="icon" type="image/svg+xml" href="/web/assets/ruc-logo-full.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/web/style.css?v=20260611-calendar-todo-1" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" aria-label="主导航">
+      <div class="sidebar-brand">
+        <img class="brand-mark" src="/web/assets/ruc-logo-full.svg" alt="中国人民大学校徽" />
+        <div class="brand-text">
+          <span class="brand-title">保研工作台</span>
+          <span class="brand-sub">中国人民大学</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav" role="navigation">
+        <button type="button" class="nav-item active" data-view="calendar" id="navCalendar">
+          <span class="nav-icon" aria-hidden="true">▦</span>
+          <span class="nav-label">学习日历</span>
+        </button>
+        <button type="button" class="nav-item" data-view="quick" id="navQuick">
+          <span class="nav-icon" aria-hidden="true">◇</span>
+          <span class="nav-label">快问快答</span>
+        </button>
+        <button type="button" class="nav-item" data-view="long" id="navLong">
+          <span class="nav-icon" aria-hidden="true">◎</span>
+          <span class="nav-label">长程规划</span>
+        </button>
+        <button type="button" class="nav-item" data-view="exam" id="navExam">
+          <span class="nav-icon" aria-hidden="true">✎</span>
+          <span class="nav-label">笔试辅导</span>
+        </button>
+        <button type="button" class="nav-item" data-view="interview" id="navInterview">
+          <span class="nav-icon" aria-hidden="true">◉</span>
+          <span class="nav-label">面试辅导</span>
+        </button>
+        <button type="button" class="nav-item" data-view="profile" id="navProfile">
+          <span class="nav-icon" aria-hidden="true">☺</span>
+          <span class="nav-label">个人信息</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-user card pad-sm" id="sidebarUser">
+        <p class="eyebrow">当前账户</p>
+        <p class="sidebar-user-name" id="sidebarUserName">—</p>
+        <button type="button" class="btn btn-ghost btn-sm" id="btnLogout">退出登录</button>
+      </div>
+
+      <div class="sidebar-foot muted small">
+        回答仅供学习规划参考，最终以学院与研招网最新通知为准。
+      </div>
+    </aside>
+
+    <main class="main" id="mainPanel">
+      <!-- Quick Chat -->
+      <section class="view view-quick hidden" id="viewQuick" data-view-panel="quick">
+        <div class="main-header">
+          <p class="workspace-tag">工作台 · 问答与证据对齐</p>
+          <h1 class="page-title">快问快答</h1>
+          <p class="page-desc">
+            输入学院、项目或材料问题，系统会先查官方文件，再补充经验库和公开网页；回答里会把依据、建议和不确定处分开写清楚。
+          </p>
+        </div>
+
+        <div class="search-panel card card-elevated">
+          <label class="sr-only" for="queryInput">研究问题</label>
+          <textarea
+            id="queryInput"
+            class="input input-lg"
+            rows="3"
+            placeholder="例如：中国人民大学财政金融学院金融专硕保研一般考察哪些方面？请以官网与可靠经验交叉核对。"
+          ></textarea>
+          <div class="scope-panel" role="group" aria-label="知识库检索范围">
+            <span class="scope-label muted small">检索范围（KB）</span>
+            <div class="scope-segment" id="kbScopeSeg">
+              <button type="button" class="scope-btn active" data-kb-scope="hybrid">混合检索：官方文件优先</button>
+              <button type="button" class="scope-btn" data-kb-scope="official_only">仅官方文件</button>
+              <button type="button" class="scope-btn" data-kb-scope="public_only">仅公众信息</button>
+            </div>
+            <p class="scope-hint muted small">
+              平台默认执行官方+公众+联网三路检索以提高完整性；规则/资格/材料类问题仍以正式文件为准。
+            </p>
+          </div>
+          <div class="search-panel-row">
+            <label class="toggle">
+              <input type="checkbox" id="enableWeb" />
+              <span>联网检索（知乎 / 微信 / 人大域名等公开页；结果标为「联网」）</span>
+            </label>
+            <div class="search-panel-actions">
+              <span class="hint muted small">Enter 发送 · Shift+Enter 换行</span>
+              <button type="button" id="sendBtn" class="btn btn-primary">生成回答</button>
+            </div>
+          </div>
+          <div class="faq-block">
+            <span class="muted small">常见问题</span>
+            <div id="faqChips" class="chips"></div>
+          </div>
+        </div>
+
+        <div id="quickEmpty" class="empty-state card">
+          <div class="empty-icon" aria-hidden="true">◇</div>
+          <h2 class="empty-title">尚未提问</h2>
+          <p class="empty-text muted">在上方输入问题后，结论、建议与引用将分别展示在中间与右侧证据栏。</p>
+        </div>
+
+        <div id="quickLoading" class="loading-state card hidden" role="status" aria-live="polite">
+          <div class="skeleton skeleton-line w-40"></div>
+          <div class="skeleton skeleton-line"></div>
+          <div class="skeleton skeleton-line w-80"></div>
+          <p class="loading-caption muted small" id="quickProgressCaption">正在初始化…</p>
+          <div class="quick-progress-bar-track" aria-hidden="true">
+            <div id="quickProgressFill" class="quick-progress-bar-fill" style="width:0%"></div>
+          </div>
+          <div class="exec-steps muted small" id="execStepsLoading">
+            <p class="exec-steps-title">执行进度</p>
+            <ol class="exec-steps-list" id="quickProgressSteps">
+              <li>等待开始…</li>
+            </ol>
+          </div>
+        </div>
+
+        <article id="answerCard" class="answer-card card card-elevated hidden" aria-live="polite">
+          <header class="answer-card-head">
+            <div>
+              <p class="eyebrow">本次问题</p>
+              <p id="answerQuestion" class="answer-question"></p>
+            </div>
+            <div class="answer-meta muted small" id="answerMeta"></div>
+          </header>
+
+          <div class="exec-steps" id="execStepsBox">
+            <div class="exec-steps-head">
+              <span class="badge badge-neutral">执行步骤</span>
+              <span class="muted small" id="execStepsHint">（本次请求的分析与检索流程）</span>
+            </div>
+            <ol class="exec-steps-list" id="execStepsList"></ol>
+            <div class="exec-files muted small" id="execFilesBox"></div>
+          </div>
+
+          <div class="disclosure-strip">
+            <span class="badge badge-model">模型生成</span>
+            <span class="muted small">正文为语言模型基于下方证据组织，不等同于官方结论。</span>
+          </div>
+
+          <div class="answer-sections">
+            <section class="answer-section answer-section-official">
+              <h2 class="section-title">总结回答</h2>
+              <p class="section-hint muted small">结合本次检索到的官方文件原文与公众信息，给出可执行的答复要点。</p>
+              <div id="secConclusion" class="section-body prose"></div>
+            </section>
+            <section class="answer-section">
+              <h2 class="section-title">检索过程</h2>
+              <p class="section-hint muted small">展示本次 AI 读取的官方文件名及检索命中概览。</p>
+              <div id="secRecommendation" class="section-body prose"></div>
+              <p id="secRecommendationEmpty" class="section-empty muted small hidden">未返回检索过程文本；可查看顶部「执行步骤」与「已读文件」。</p>
+            </section>
+            <section class="answer-section answer-section-warn">
+              <h2 class="section-title">不确定性 / 冲突说明</h2>
+              <p class="section-hint muted small">资料缺口、时效不明、与经验矛盾处；重要事项请向学院确认。</p>
+              <div id="secRisks" class="section-body prose"></div>
+              <p id="secRisksEmpty" class="section-empty muted small hidden">未列出额外不确定性；仍请以最新通知为准。</p>
+            </section>
+          </div>
+
+          <section class="answer-section answer-section-refs hidden" id="secReferencesBox">
+            <h2 class="section-title">参考文献</h2>
+            <div id="secReferences" class="section-body prose"></div>
+          </section>
+
+          <details class="answer-raw">
+            <summary>查看完整原文（含未拆分段落）</summary>
+            <div id="answerRaw" class="prose muted"></div>
+          </details>
+        </article>
+      </section>
+
+      <!-- Exam tutoring -->
+      <section class="view view-exam hidden" id="viewExam" data-view-panel="exam">
+        <div class="main-header">
+          <p class="workspace-tag">笔试辅导 · 经验库优先</p>
+          <h1 class="page-title">笔试辅导</h1>
+          <p class="page-desc">
+            围绕目标学院检索往届笔试经验，整理可能考什么、怎么复习、哪些信息需要等当年通知确认。
+          </p>
+        </div>
+
+        <div class="search-panel card card-elevated">
+          <label class="sr-only" for="examQueryInput">笔试问题</label>
+          <textarea
+            id="examQueryInput"
+            class="input input-lg"
+            rows="3"
+            placeholder="例如：中国人民大学财政金融学院金融专硕保研笔试考什么？题型和复习重点有哪些？"
+          ></textarea>
+          <div class="search-panel-row">
+            <label class="toggle">
+              <input type="checkbox" id="examEnableWeb" />
+              <span>必要时补充联网经验线索</span>
+            </label>
+            <div class="search-panel-actions">
+              <span class="hint muted small">优先检索经验库</span>
+              <button type="button" id="examSendBtn" class="btn btn-primary">生成辅导建议</button>
+            </div>
+          </div>
+          <div class="faq-block">
+            <span class="muted small">示例问题</span>
+            <div id="examFaqChips" class="chips"></div>
+          </div>
+        </div>
+
+        <div id="examEmpty" class="empty-state card">
+          <div class="empty-icon" aria-hidden="true">✎</div>
+          <h2 class="empty-title">尚未生成辅导建议</h2>
+          <p class="empty-text muted">输入目标学院或项目后，系统会从经验库里找笔试相关信息。</p>
+        </div>
+
+        <div id="examLoading" class="loading-state card hidden" role="status" aria-live="polite">
+          <div class="skeleton skeleton-line w-40"></div>
+          <div class="skeleton skeleton-line"></div>
+          <div class="skeleton skeleton-line w-80"></div>
+          <p class="loading-caption muted small">正在检索经验库并整理笔试建议…</p>
+        </div>
+
+        <article id="examAnswerCard" class="answer-card card card-elevated hidden" aria-live="polite">
+          <header class="answer-card-head">
+            <div>
+              <p class="eyebrow">本次问题</p>
+              <p id="examAnswerQuestion" class="answer-question"></p>
+            </div>
+            <div class="answer-meta muted small" id="examAnswerMeta"></div>
+          </header>
+          <div class="disclosure-strip">
+            <span class="badge badge-exp">经验库优先</span>
+            <span class="muted small">经验内容可能因年份、项目和个人背景不同而变化，请以学院最新通知为准。</span>
+          </div>
+          <div class="exec-steps">
+            <div class="exec-steps-head">
+              <strong>本次检索过程</strong>
+              <span class="muted small">用于确认是否联网、是否读取经验库和官方文件。</span>
+            </div>
+            <ol class="exec-steps-list" id="examExecStepsList"></ol>
+          </div>
+          <section class="answer-section answer-section-official">
+            <h2 class="section-title">笔试辅导建议</h2>
+            <div id="examAnswerBody" class="section-body prose"></div>
+          </section>
+          <section class="answer-section answer-section-refs hidden" id="examReferencesBox">
+            <h2 class="section-title">参考文献</h2>
+            <div id="examReferences" class="section-body prose"></div>
+          </section>
+        </article>
+      </section>
+
+      <!-- Interview tutoring -->
+      <section class="view view-interview hidden" id="viewInterview" data-view-panel="interview">
+        <div class="main-header">
+          <p class="workspace-tag">面试辅导 · 豆包模拟</p>
+          <h1 class="page-title">面试辅导</h1>
+          <p class="page-desc">
+            把行为面、专业面和压力面三类常见面试场景整理成可复制的开场话术，带着简历和目标项目就能开始一问一答模拟。
+          </p>
+        </div>
+
+        <div class="interview-grid">
+          <article class="card card-elevated interview-card">
+            <h2 class="h3">行为面试模拟</h2>
+            <p class="muted small">围绕个人背景、简历经历、项目匹配度、职业规划和团队协作追问。</p>
+            <textarea id="interviewPromptBehavior" class="input interview-prompt" readonly rows="10">豆包，现在请你根据我刚刚提供的简历，以及我要面试的保研夏令营项目，开始模拟行为面试。请你严格按照真实夏令营面试的形式进行，一个问题一个问题地问，不要一次性给出所有问题，也不要提前给我答案。
+
+本轮行为面试请重点围绕我的个人背景、简历经历、科研/实习/学生工作/竞赛经历、自我介绍、personal statement、职业规划、why me、why this program、项目匹配度、团队合作、领导力、责任感、抗压经历和个人成长进行提问。请结合不同项目的风格差异调整问题，例如偏“好学生导向”的项目要更关注成绩、科研、学术潜力和校园经历，偏“好员工导向”的项目要更关注实习、职业规划、行业认知、沟通表达和执行力。
+
+面试过程中，请你扮演真实面试官，根据我的回答继续追问，尤其要深挖我简历中最有代表性的经历、最能体现项目匹配度的经历，以及可能存在薄弱点的地方。现在开始行为面试，请先问我第一个问题。</textarea>
+            <div class="row-actions">
+              <button type="button" class="btn btn-secondary" data-copy-target="interviewPromptBehavior">复制话术</button>
+              <a class="btn btn-primary" href="https://www.doubao.com/chat" target="_blank" rel="noopener noreferrer">打开豆包</a>
+            </div>
+          </article>
+
+          <article class="card card-elevated interview-card">
+            <h2 class="h3">专业技术面试模拟</h2>
+            <p class="muted small">围绕目标项目常见专业基础、应用分析和真实夏令营题型追问。</p>
+            <textarea id="interviewPromptTechnical" class="input interview-prompt" readonly rows="10">豆包，现在请你根据我刚刚提供的简历，以及我要面试的保研夏令营项目，开始模拟专业技术面试。请你严格按照真实夏令营面试的形式进行，一个问题一个问题地问，不要一次性给出所有问题，也不要提前给我答案。
+
+本轮专业技术面试请重点围绕目标项目可能考察的专业基础和综合应用能力提问。请结合项目方向设置问题，例如金融、经管、保险、税务、金融科技、国金、汇丰、光华、人大财金等项目，重点覆盖公司财务、投资学、货币银行学、商业银行、金融衍生品、国际金融、计量经济学、微积分、概率论、线性代数等内容。也可以结合真实夏令营常见题型进行提问，例如MM定理及其假设、APT假设、BS公式定价逻辑、一级市场和二级市场区别、募投管退、银行股为什么用PB估值、A股市场PE/PB、公开市场股价为什么会影响公司、转移定价、贸易战与关税、区块链发展、金融科技应用等。
+
+面试过程中，请你扮演真实面试官，根据我的回答继续追问，不仅考察我是否会背概念，更要考察我能否解释原理、理解假设、联系现实案例，并进行有逻辑的分析。现在开始专业技术面试，请先问我第一个问题。</textarea>
+            <div class="row-actions">
+              <button type="button" class="btn btn-secondary" data-copy-target="interviewPromptTechnical">复制话术</button>
+              <a class="btn btn-primary" href="https://www.doubao.com/chat" target="_blank" rel="noopener noreferrer">打开豆包</a>
+            </div>
+          </article>
+
+          <article class="card card-elevated interview-card">
+            <h2 class="h3">压力面试模拟</h2>
+            <p class="muted small">模拟更严格的追问，训练临场反应、逻辑稳定性和表达分寸。</p>
+            <textarea id="interviewPromptStress" class="input interview-prompt" readonly rows="10">豆包，现在请你根据我刚刚提供的简历，以及我要面试的保研夏令营项目，开始模拟压力面试。请你严格按照真实夏令营面试的形式进行，一个问题一个问题地问，不要一次性给出所有问题，也不要提前给我答案。
+
+本轮压力面试请适当提高提问强度，重点考察我的临场反应、逻辑稳定性、表达韧性、自我认知、抗压能力和项目匹配度。请围绕我的简历薄弱点、经历真实性、项目选择动机、职业规划一致性、专业基础短板、与其他候选人的比较优势等方面进行挑战式提问。例如可以追问：为什么你认为自己比其他候选人更适合？你的科研/实习经历是否足够支撑申请这个项目？你同时申请多个项目是否说明目标不坚定？如果你的数学或专业课基础不如其他候选人怎么办？如果我们认为你的经历和项目方向并不匹配，你如何回应？
+
+面试过程中，请你扮演较为严格的面试官，可以进行连续追问和反问，但不要进行人身攻击或无意义否定。请重点模拟真实夏令营中有压力但仍然专业的面试氛围。等我全部回答结束后，再统一复盘我的表现，包括回答逻辑、抗压状态、表达分寸、风险点和改进建议。现在开始压力面试，请先问我第一个问题。</textarea>
+            <div class="row-actions">
+              <button type="button" class="btn btn-secondary" data-copy-target="interviewPromptStress">复制话术</button>
+              <a class="btn btn-primary" href="https://www.doubao.com/chat" target="_blank" rel="noopener noreferrer">打开豆包</a>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Long-form -->
+      <section class="view view-long hidden" id="viewLong" data-view-panel="long">
+        <div class="main-header">
+          <h1 class="page-title">长程规划</h1>
+          <p class="page-desc">
+            把成绩、经历和目标项目一次填清，系统会生成项目组合、时间线和行动清单，并可直接同步到日历与待办。
+          </p>
+        </div>
+
+        <div class="stack gap-lg">
+          <div class="card card-elevated pad-lg">
+            <h2 class="h3">1. 必填信息</h2>
+            <div class="lp-form-grid">
+              <label class="lp-field"><span class="lp-label">当前就读学校</span>
+                <input type="text" class="input" name="current_school" data-lp-req autocomplete="organization" placeholder="如：中国人民大学" /></label>
+              <label class="lp-field"><span class="lp-label">就读年级</span>
+                <select class="input" name="grade_year" data-lp-req>
+                  <option value="">请选择</option>
+                  <option value="大一">大一</option>
+                  <option value="大二">大二</option>
+                  <option value="大三">大三</option>
+                </select></label>
+              <label class="lp-field lp-span2"><span class="lp-label">就读学院</span>
+                <input type="text" class="input" name="college" data-lp-req placeholder="如：财政金融学院" /></label>
+              <label class="lp-field lp-span2"><span class="lp-label">就读专业</span>
+                <input type="text" class="input" name="major" data-lp-req placeholder="如：金融学" /></label>
+              <label class="lp-field"><span class="lp-label">GPA</span>
+                <input type="text" class="input" name="gpa" data-lp-req placeholder="如：3.72 / 4.0" /></label>
+              <label class="lp-field"><span class="lp-label">专业排名（百分比）</span>
+                <input type="text" class="input" name="major_rank_percentile" data-lp-req placeholder="如前 10%" /></label>
+              <label class="lp-field"><span class="lp-label">目标学校</span>
+                <input type="text" class="input" name="target_school" data-lp-target placeholder="如：中国人民大学" /></label>
+              <label class="lp-field"><span class="lp-label">目标院校</span>
+                <input type="text" class="input" name="target_college" data-lp-target placeholder="如：财政金融学院" /></label>
+              <div class="lp-field lp-span2"><span class="lp-label">目标类型</span>
+                <div class="lp-check-group" role="group" aria-label="目标类型">
+                  <label class="lp-check"><input type="checkbox" name="target_degree_type" value="专硕" data-lp-target-degree />专硕</label>
+                  <label class="lp-check"><input type="checkbox" name="target_degree_type" value="学硕" data-lp-target-degree />学硕</label>
+                  <label class="lp-check"><input type="checkbox" name="target_degree_type" value="直博" data-lp-target-degree />直博</label>
+                </div>
+              </div>
+              <label class="lp-field"><span class="lp-label">雅思（英语成绩至少填一项）</span>
+                <input type="text" class="input" name="english_ielts" data-lp-english placeholder="如：7.0" /></label>
+              <label class="lp-field"><span class="lp-label">托福</span>
+                <input type="text" class="input" name="english_toefl" data-lp-english placeholder="如：105" /></label>
+              <label class="lp-field lp-span2"><span class="lp-label">六级</span>
+                <input type="text" class="input" name="english_cet6" data-lp-english placeholder="如：580" /></label>
+            </div>
+          </div>
+
+          <div class="card card-elevated pad-lg">
+            <h2 class="h3">2. 选填信息</h2>
+            <div class="lp-form-grid">
+              <label class="lp-field lp-span2"><span class="lp-label">科研与竞赛</span>
+                <textarea class="input" name="research_and_competitions" data-lp-opt rows="2" placeholder="大创、论文、建模、商赛等"></textarea></label>
+              <label class="lp-field lp-span2"><span class="lp-label">实习经历</span>
+                <textarea class="input" name="internships" data-lp-opt rows="2"></textarea></label>
+              <label class="lp-field lp-span2"><span class="lp-label">学生工作、社团</span>
+                <input class="input" name="student_work_clubs" data-lp-opt /></label>
+              <label class="lp-field lp-span2"><span class="lp-label">未来 3～5 年路径倾向</span>
+                <input class="input" name="career_path_3_5y" data-lp-opt placeholder="学术 / 体制 / 企业 / 创业 / 未定" /></label>
+              <label class="lp-field lp-span2"><span class="lp-label">期望岗位或行业领域</span>
+                <input class="input" name="expected_roles_or_industry" data-lp-opt /></label>
+              <label class="lp-field lp-span2"><span class="lp-label">夏令营 / 预推免 准备进度</span>
+                <textarea class="input" name="admission_prep_stage" data-lp-opt rows="2" placeholder="进度；是否做过模拟面试"></textarea></label>
+              <label class="lp-field lp-span2"><span class="lp-label">当前最大顾虑或短板</span>
+                <textarea class="input" name="main_concerns" data-lp-opt rows="2" placeholder="材料、复习、时间、心态等"></textarea></label>
+              <label class="lp-field lp-span2"><span class="lp-label">备注</span>
+                <textarea class="input" name="notes" data-lp-opt rows="2" placeholder="其他希望系统记住的信息"></textarea></label>
+            </div>
+            <label class="toggle lp-toggle">
+              <input type="checkbox" id="longUseWeb" checked />
+              <span>生成报告时附带联网摘要（与快问快答一致）</span>
+            </label>
+            <div class="row-actions lp-actions">
+              <button type="button" id="btnReport" class="btn btn-primary">生成规划报告</button>
+              <button type="button" id="btnReportHtml" class="btn btn-secondary" disabled>打开 HTML 报告</button>
+              <button type="button" id="btnDownloadHtml" class="btn btn-secondary" disabled>下载 HTML 报告</button>
+              <button type="button" id="btnPlanToCalendar" class="btn btn-secondary" disabled>加入学习日历</button>
+              <button type="button" id="btnPlanToTodos" class="btn btn-secondary" disabled>拆成待办</button>
+            </div>
+            <p id="longPlanErr" class="muted small lp-err hidden" role="alert"></p>
+          </div>
+
+          <div id="longPlanProgress" class="card card-elevated pad-lg" style="display:none" role="status" aria-live="polite">
+            <h2 class="h3" style="margin-bottom:0.75rem">正在生成报告</h2>
+            <div class="progress-bar-track">
+              <div id="progressBarFill" class="progress-bar-fill" style="width:0%"></div>
+            </div>
+            <p class="progress-text">正在努力生成中，分析环节较多，可能需要等待...</p>
+            <p id="progressStepLabel" class="muted small">初始化…</p>
+          </div>
+
+          <div class="card card-elevated pad-lg">
+            <h2 class="h3">3. 报告预览</h2>
+            <article id="longReportPreview" class="lp-preview prose hidden" aria-live="polite"></article>
+            <p id="longReportPlaceholder" class="muted small">填写表单并点击「生成规划报告」后在此预览。</p>
+            <details class="answer-raw">
+              <summary>查看报告 JSON</summary>
+              <pre id="longReportJson" class="report-pre">（尚未生成）</pre>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <!-- Study calendar -->
+      <section class="view view-calendar" id="viewCalendar" data-view-panel="calendar">
+        <div class="main-header">
+          <p class="workspace-tag">首页 · 今日推进</p>
+          <h1 class="page-title">今日工作台</h1>
+          <p class="page-desc">
+            把今天要交付的申请动作放在最前面：当天任务、本周重点和常用入口一屏看完，下方继续安排长期日历。
+          </p>
+        </div>
+
+        <section class="workbench-grid" aria-label="今日工作台">
+          <article class="workbench-card card card-elevated pad-lg">
+            <div class="workbench-card-head">
+              <div>
+                <p class="eyebrow">今天</p>
+                <h2 class="h3">今日安排</h2>
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm" id="wbRefreshBtn">刷新</button>
+            </div>
+            <div id="wbTodayList" class="workbench-list">
+              <p class="muted small">正在读取今日安排…</p>
+            </div>
+          </article>
+
+          <article class="workbench-card card card-elevated pad-lg">
+            <div class="workbench-card-head">
+              <div>
+                <p class="eyebrow">本周</p>
+                <h2 class="h3">本周重点</h2>
+              </div>
+            </div>
+            <div id="wbWeekList" class="workbench-list">
+              <p class="muted small">正在读取本周安排…</p>
+            </div>
+          </article>
+
+          <article class="workbench-card card card-elevated pad-lg">
+            <p class="eyebrow">快捷入口</p>
+            <h2 class="h3">下一步动作</h2>
+            <div class="workbench-actions">
+              <button type="button" class="btn btn-primary" id="wbQuickAskBtn">快问快答</button>
+              <button type="button" class="btn btn-secondary" id="wbExamBtn">笔试辅导</button>
+              <button type="button" class="btn btn-secondary" id="wbInterviewBtn">面试辅导</button>
+            </div>
+            <div class="workbench-nudge hidden" id="wbProfileNudge">
+              <p class="muted small">个人信息还不完整，完善后长程规划会更贴合你的背景。</p>
+              <button type="button" class="btn btn-ghost btn-sm" id="btnWorkbenchProfile">完善个人信息</button>
+            </div>
+          </article>
+        </section>
+
+        <div class="cal-layout">
+          <div class="cal-main card card-elevated pad-lg">
+            <div class="section-head-inline">
+              <div>
+                <p class="eyebrow">月历</p>
+                <h2 class="h3">学习日历</h2>
+              </div>
+            </div>
+            <div class="cal-toolbar">
+              <div class="cal-toolbar-left">
+                <button type="button" class="btn btn-secondary btn-sm" id="calPrevMonth" aria-label="上一月">‹</button>
+                <h2 class="cal-month-label" id="calMonthLabel">—</h2>
+                <button type="button" class="btn btn-secondary btn-sm" id="calNextMonth" aria-label="下一月">›</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="calToday">今天</button>
+              </div>
+              <label class="cal-year-select">
+                <span class="sr-only">选择年份</span>
+                <select class="input" id="calYearSelect"></select>
+              </label>
+            </div>
+            <div class="cal-grid" id="calGrid" role="grid" aria-label="月历"></div>
+            <div class="cal-day-panel hidden" id="calDayPanel">
+              <div class="cal-day-panel-head">
+                <h3 class="h3" id="calDayPanelTitle">—</h3>
+                <button type="button" class="btn btn-ghost btn-sm" id="calAddPlanForDay">添加当天单次计划</button>
+              </div>
+              <div id="calDayPlanList"></div>
+            </div>
+
+            <div class="cal-add-section">
+              <h2 class="h3">添加计划</h2>
+              <div class="cal-form">
+                <div class="cal-form-grid">
+                  <label class="lp-field">
+                    <span class="lp-label">计划名称</span>
+                    <input type="text" class="input" id="calPlanTitle" placeholder="如：学习英语、刷专业课" maxlength="80" />
+                  </label>
+                  <label class="lp-field">
+                    <span class="lp-label">类型</span>
+                    <select class="input" id="calPlanType">
+                      <option value="recurring">重复（每周固定日）</option>
+                      <option value="once">单次（指定日期）</option>
+                    </select>
+                  </label>
+                  <label class="lp-field">
+                    <span class="lp-label">颜色</span>
+                    <select class="input" id="calPlanColor">
+                      <option value="#2563eb">蓝色</option>
+                      <option value="#16a34a">绿色</option>
+                      <option value="#d97706">橙色</option>
+                      <option value="#dc2626">红色</option>
+                      <option value="#7c3aed">紫色</option>
+                      <option value="#0891b2">青色</option>
+                      <option value="#db2777">粉色</option>
+                    </select>
+                  </label>
+                </div>
+                <div id="calRecurringFields">
+                  <span class="lp-label">重复星期</span>
+                  <div class="cal-weekday-checks" id="calPlanWeekdays">
+                    <label class="lp-check"><input type="checkbox" value="0" />周一</label>
+                    <label class="lp-check"><input type="checkbox" value="1" />周二</label>
+                    <label class="lp-check"><input type="checkbox" value="2" />周三</label>
+                    <label class="lp-check"><input type="checkbox" value="3" />周四</label>
+                    <label class="lp-check"><input type="checkbox" value="4" />周五</label>
+                    <label class="lp-check"><input type="checkbox" value="5" />周六</label>
+                    <label class="lp-check"><input type="checkbox" value="6" />周日</label>
+                  </div>
+                  <div class="cal-form-grid">
+                    <label class="lp-field">
+                      <span class="lp-label">开始日期</span>
+                      <input type="date" class="input" id="calPlanStartDate" min="2020-01-01" max="2035-12-31" />
+                    </label>
+                    <label class="lp-field">
+                      <span class="lp-label">结束日期</span>
+                      <input type="date" class="input" id="calPlanEndDate" min="2020-01-01" max="2035-12-31" />
+                    </label>
+                  </div>
+                </div>
+                <div id="calOnceFields" class="hidden">
+                  <label class="lp-field">
+                    <span class="lp-label">日期</span>
+                    <input type="date" class="input" id="calPlanOnceDate" min="2020-01-01" max="2035-12-31" />
+                  </label>
+                </div>
+                <label class="lp-field">
+                  <span class="lp-label">备注（选填）</span>
+                  <textarea class="input" id="calPlanNote" rows="2" maxlength="500" placeholder="如：背单词 30 分钟"></textarea>
+                </label>
+                <button type="button" class="btn btn-secondary" id="calAddPlan">添加到列表</button>
+              </div>
+            </div>
+          </div>
+
+          <aside class="cal-sidebar">
+            <div class="card card-elevated pad-lg">
+              <h2 class="h3">我的学习计划</h2>
+              <p class="muted small">计划会自动保存到当前账户，下次登录仍可查看。</p>
+              <div id="calPlanList" class="cal-plan-list"></div>
+              <div class="row-actions">
+                <button type="button" class="btn btn-primary" id="calSavePlans">保存计划</button>
+              </div>
+              <p id="calSaveMsg" class="muted small lp-err hidden" role="status"></p>
+              <p class="muted small" id="calUpdatedAt"></p>
+            </div>
+          </aside>
+        </div>
+
+        <!-- Todo matrix -->
+        <section class="calendar-todo-section" id="calendarTodoSection" aria-label="创新待办矩阵">
+          <div class="main-header compact-header">
+            <p class="workspace-tag">日历 · 优先级管理</p>
+            <h2 class="page-title">创新待办矩阵</h2>
+            <p class="page-desc">
+              从规划里拆出来的任务会落到这里：按重要和紧急程度分区，有日期的事项会同步显示在月历上。
+            </p>
+          </div>
+
+          <div class="todo-layout">
+            <div class="todo-main card card-elevated pad-lg">
+              <div class="todo-matrix-wrap" aria-label="待办四象限矩阵">
+                <div class="todo-axis todo-axis-y">
+                  <span class="todo-axis-label todo-axis-top">重要 ↑</span>
+                  <span class="todo-axis-label todo-axis-bottom">↓ 不重要</span>
+                </div>
+                <div class="todo-matrix-center">
+                  <div class="todo-matrix" id="todoMatrix"></div>
+                  <div class="todo-axis todo-axis-x">
+                    <span class="todo-axis-label">← 不紧急</span>
+                    <span class="todo-axis-label">紧急 →</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="todo-detail-panel hidden card pad-sm" id="todoDetailPanel">
+                <div class="todo-detail-head">
+                  <h3 class="h3" id="todoDetailTitle">—</h3>
+                  <button type="button" class="btn btn-ghost btn-sm" id="todoDetailDismiss" aria-label="关闭">×</button>
+                </div>
+                <div id="todoDetailBody"></div>
+              </div>
+
+              <div class="todo-add-section">
+                <h2 class="h3">添加待办</h2>
+                <div class="cal-form-grid">
+                  <label class="lp-field">
+                    <span class="lp-label">名称</span>
+                    <input type="text" class="input" id="todoFormName" placeholder="如：整理夏令营材料" maxlength="80" />
+                  </label>
+                  <label class="lp-field">
+                    <span class="lp-label">重要程度（象限）</span>
+                    <select class="input" id="todoFormQuadrant">
+                      <option value="I">I 级 · 重要且紧急</option>
+                      <option value="II" selected>II 级 · 重要不紧急</option>
+                      <option value="III">III 级 · 紧急不重要</option>
+                      <option value="IV">IV 级 · 不重要不紧急</option>
+                    </select>
+                  </label>
+                  <label class="lp-field">
+                    <span class="lp-label">日期（选填）</span>
+                    <input type="date" class="input" id="todoFormDate" />
+                  </label>
+                  <label class="lp-field lp-span2">
+                    <span class="lp-label">细节（选填）</span>
+                    <textarea class="input" id="todoFormDetails" rows="2" maxlength="500" placeholder="补充说明、步骤或备注"></textarea>
+                  </label>
+                </div>
+                <button type="button" class="btn btn-secondary" id="todoAddBtn">添加到矩阵</button>
+              </div>
+            </div>
+
+            <aside class="todo-sidebar">
+              <div class="card card-elevated pad-lg">
+                <h2 class="h3">我的待办列表</h2>
+                <p class="muted small">按 I → IV 重要程度排序；修改后会自动保存到当前账户。</p>
+                <div id="todoList" class="todo-list"></div>
+                <div class="row-actions">
+                  <button type="button" class="btn btn-primary" id="todoSaveBtn">保存待办</button>
+                </div>
+                <p id="todoSaveMsg" class="muted small lp-err hidden" role="status"></p>
+                <p class="muted small" id="todoUpdatedAt"></p>
+              </div>
+            </aside>
+          </div>
+        </section>
+      </section>
+
+      <!-- User profile -->
+      <section class="view view-profile hidden" id="viewProfile" data-view-panel="profile">
+        <div class="main-header">
+          <p class="workspace-tag">账户 · 保研画像</p>
+          <h1 class="page-title">个人信息</h1>
+          <p class="page-desc">
+            集中保存学校、成绩、目标项目和经历素材，后续生成规划或辅导时不用重复填写背景。
+          </p>
+        </div>
+
+        <div class="stack gap-lg">
+          <div class="card card-elevated pad-lg">
+            <h2 class="h3">基本与学业</h2>
+            <div class="lp-form-grid" id="profileFormBasic">
+              <label class="lp-field"><span class="lp-label">显示名称（选填）</span>
+                <input type="text" class="input" name="display_name" data-profile placeholder="如：小明" /></label>
+              <label class="lp-field"><span class="lp-label">当前就读学校</span>
+                <input type="text" class="input" name="current_school" data-profile placeholder="如：中国人民大学" /></label>
+              <label class="lp-field"><span class="lp-label">就读年级</span>
+                <select class="input" name="grade_year" data-profile>
+                  <option value="">请选择</option>
+                  <option value="大一">大一</option>
+                  <option value="大二">大二</option>
+                  <option value="大三">大三</option>
+                  <option value="大四">大四</option>
+                </select></label>
+              <label class="lp-field lp-span2"><span class="lp-label">就读学院</span>
+                <input type="text" class="input" name="college" data-profile /></label>
+              <label class="lp-field lp-span2"><span class="lp-label">就读专业</span>
+                <input type="text" class="input" name="major" data-profile /></label>
+              <label class="lp-field"><span class="lp-label">GPA</span>
+                <input type="text" class="input" name="gpa" data-profile placeholder="如：3.72 / 4.0" /></label>
+              <label class="lp-field"><span class="lp-label">专业排名</span>
+                <input type="text" class="input" name="major_rank_percentile" data-profile placeholder="如前 10%" /></label>
+            </div>
+          </div>
+
+          <div class="card card-elevated pad-lg">
+            <h2 class="h3">保研目标</h2>
+            <div class="lp-form-grid" id="profileFormTarget">
+              <label class="lp-field"><span class="lp-label">目标学校</span>
+                <input type="text" class="input" name="target_school" data-profile /></label>
+              <label class="lp-field"><span class="lp-label">目标学院</span>
+                <input type="text" class="input" name="target_college" data-profile /></label>
+              <div class="lp-field lp-span2"><span class="lp-label">目标类型</span>
+                <div class="lp-check-group" id="profileDegreeTypes">
+                  <label class="lp-check"><input type="checkbox" value="专硕" data-profile-degree />专硕</label>
+                  <label class="lp-check"><input type="checkbox" value="学硕" data-profile-degree />学硕</label>
+                  <label class="lp-check"><input type="checkbox" value="直博" data-profile-degree />直博</label>
+                </div>
+              </div>
+              <label class="lp-field"><span class="lp-label">雅思</span>
+                <input type="text" class="input" name="english_ielts" data-profile /></label>
+              <label class="lp-field"><span class="lp-label">托福</span>
+                <input type="text" class="input" name="english_toefl" data-profile /></label>
+              <label class="lp-field"><span class="lp-label">六级</span>
+                <input type="text" class="input" name="english_cet6" data-profile /></label>
+            </div>
+          </div>
+
+          <div class="card card-elevated pad-lg">
+            <h2 class="h3">经历与准备</h2>
+            <div class="lp-form-grid" id="profileFormExp">
+              <label class="lp-field lp-span2"><span class="lp-label">科研与竞赛</span>
+                <textarea class="input" name="research_and_competitions" data-profile rows="2"></textarea></label>
+              <label class="lp-field lp-span2"><span class="lp-label">实习经历</span>
+                <textarea class="input" name="internships" data-profile rows="2"></textarea></label>
+              <label class="lp-field lp-span2"><span class="lp-label">学生工作、社团</span>
+                <input type="text" class="input" name="student_work_clubs" data-profile /></label>
+              <label class="lp-field lp-span2"><span class="lp-label">未来 3～5 年路径倾向</span>
+                <input type="text" class="input" name="career_path_3_5y" data-profile /></label>
+              <label class="lp-field lp-span2"><span class="lp-label">期望岗位或行业</span>
+                <input type="text" class="input" name="expected_roles_or_industry" data-profile /></label>
+              <label class="lp-field lp-span2"><span class="lp-label">夏令营 / 预推免准备进度</span>
+                <textarea class="input" name="admission_prep_stage" data-profile rows="2"></textarea></label>
+              <label class="lp-field lp-span2"><span class="lp-label">当前最大顾虑或短板</span>
+                <textarea class="input" name="main_concerns" data-profile rows="2"></textarea></label>
+              <label class="lp-field lp-span2"><span class="lp-label">备注</span>
+                <textarea class="input" name="notes" data-profile rows="2" placeholder="其他希望系统记住的信息"></textarea></label>
+            </div>
+            <div class="row-actions lp-actions">
+              <button type="button" id="btnSaveProfile" class="btn btn-primary">保存个人信息</button>
+              <button type="button" id="btnApplyProfileToLong" class="btn btn-secondary">同步到长程规划表单</button>
+            </div>
+            <p id="profileSaveMsg" class="muted small lp-err hidden" role="status"></p>
+            <p class="muted small" id="profileUpdatedAt"></p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <aside class="evidence-panel" aria-label="证据与引用">
+      <div class="evidence-head">
+        <h2 class="evidence-title">证据与引用</h2>
+        <p class="muted small" id="evidenceSubtitle">在「快问快答」生成回答后，此处展示分层引用。</p>
+      </div>
+
+      <div id="evidenceEmpty" class="empty-state evidence-empty">
+        <div class="empty-icon small" aria-hidden="true">▤</div>
+        <p class="muted small">尚无引用。生成回答后将按类型分组。</p>
+      </div>
+
+      <div id="evidenceGroups" class="evidence-groups hidden"></div>
+
+      <div class="evidence-legend card pad-sm">
+        <p class="eyebrow">图例</p>
+        <ul class="legend-list muted small">
+          <li><span class="badge badge-cred-high">官方依据</span> ★★★★★ 正式文件、招生简章、学院通知</li>
+          <li><span class="badge badge-cred-med">高价值经验</span> ★★★★☆ 有明确项目、年份、流程或题型细节</li>
+          <li><span class="badge badge-cred-med">经验线索</span> ★★★☆☆ 可参考，但样本或细节有限</li>
+          <li><span class="badge badge-cred-low">待核验线索</span> ★★☆☆☆ 来源、年份或匹配度仍需确认</li>
+          <li><span class="badge badge-cred-low">低可信线索</span> ★☆☆☆☆ 推广、引流或夸张承诺风险较高</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+
+  <script src="/web/session.js?v=auth-2"></script>
+  <script src="/web/study-calendar.js?v=20260615-fixed-date-1"></script>
+  <script src="/web/todo-matrix.js?v=20260615-fixed-date-1"></script>
+  <script src="/web/app.js?v=20260615-timeline-sync-1"></script>
+</body>
+</html>
